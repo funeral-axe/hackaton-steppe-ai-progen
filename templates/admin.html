@@ -1,47 +1,378 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
+
 <head>
-    <title>Панель Администратора</title>
+    <meta charset="UTF-8">
+    <title>Audio Search Admin</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px;}
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        body {
+            background: #f5f7fb;
+            overflow-x: hidden;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #1f2937;
+            color: white;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .sidebar a {
+            display: block;
+            color: #d1d5db;
+            text-decoration: none;
+            padding: 15px 20px;
+            transition: .2s;
+        }
+
+        .sidebar a:hover {
+            background: #374151;
+            color: white;
+        }
+
+        .content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, .08);
+        }
+
+        .table {
+            vertical-align: middle;
+        }
+
+        .status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .online {
+            background: #16a34a;
+        }
+
+        .offline {
+            background: #dc2626;
+        }
     </style>
+
 </head>
+
 <body>
-    <div style="float: right;"><a href="/logout">Выйти</a></div>
-    <h2>Панель Администратора</h2>
-    <p>Добро пожаловать, {{ user.login }}!</p>
 
-    <h3>Добавить пользователя</h3>
-    <form action="/admin/add_user" method="post">
-        <input type="text" name="login" placeholder="Логин" required>
-        <input type="password" name="password" placeholder="Пароль" required>
-        <select name="role">
-            <option value="user">Пользователь</option>
-            <option value="admin">Администратор</option>
-        </select>
-        <button type="submit">Создать</button>
-    </form>
+    <div class="sidebar">
 
-    <h3>Список пользователей</h3>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Логин</th>
-            <th>Роль</th>
-            <th>Дата создания</th>
-            <th>Действия</th>
-        </tr>
-        {% for u in users %}
-        <tr>
-            <td>{{ u.id }}</td>
-            <td>{{ u.login }}</td>
-            <td>{{ u.role }}</td>
-            <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td><button>Редактировать</button></td> <!-- Кнопка заглушка для будущего JS -->
-        </tr>
-        {% endfor %}
-    </table>
+        <div class="logo">
+            🎧 Audio Search
+        </div>
+
+        <a href="#">
+            <i class="bi bi-speedometer2"></i>
+            Dashboard
+        </a>
+
+        <a href="#">
+            <i class="bi bi-people"></i>
+            Пользователи
+        </a>
+
+        <a href="#">
+            <i class="bi bi-globe"></i>
+            Разрешенные IP
+        </a>
+
+        <a href="#">
+            <i class="bi bi-clock-history"></i>
+            История входов
+        </a>
+
+        <a href="#">
+            <i class="bi bi-list-check"></i>
+            Журнал действий
+        </a>
+
+        <a href="#">
+            <i class="bi bi-pc-display"></i>
+            Активные сессии
+        </a>
+
+        <a href="/logout">
+            <i class="bi bi-box-arrow-right"></i>
+            Выход
+        </a>
+
+    </div>
+
+    <div class="content">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+
+            <div>
+
+                <h2>Панель администратора</h2>
+
+                <small class="text-muted">
+                    Добро пожаловать, {{ user.login }}
+                </small>
+
+            </div>
+
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+
+                <i class="bi bi-person-plus"></i>
+
+                Создать пользователя
+
+            </button>
+
+        </div>
+
+        <div class="row mb-4">
+
+            <div class="col-md-3">
+
+                <div class="card p-3">
+
+                    <h5>Пользователей</h5>
+
+                    <h2>{{ users|length }}</h2>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-3">
+
+                <div class="card p-3">
+
+                    <h5>Активных</h5>
+
+                    <h2>{{ users|selectattr('is_active')|list|length }}</h2>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-3">
+
+                <div class="card p-3">
+
+                    <h5>Администраторов</h5>
+
+                    <h2>{{ users|selectattr('role','equalto','admin')|list|length }}</h2>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-3">
+
+                <div class="card p-3">
+
+                    <h5>Операторов</h5>
+
+                    <h2>{{ users|selectattr('role','equalto','operator')|list|length }}</h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="card p-4">
+
+            <table class="table table-hover">
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+
+                        <th>Логин</th>
+
+                        <th>Роль</th>
+
+                        <th>Статус</th>
+
+                        <th>Последний вход</th>
+
+                        <th width="280">Действия</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for u in users %}
+
+                    <tr>
+
+                        <td>{{ u.id }}</td>
+
+                        <td>{{ u.login }}</td>
+
+                        <td>
+
+                            <span class="badge bg-primary">
+                                {{ u.role }}
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            {% if u.is_active %}
+
+                            <span class="status online"></span>
+
+                            Активен
+
+                            {% else %}
+
+                            <span class="status offline"></span>
+
+                            Заблокирован
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {{ u.last_login if u.last_login else "-" }}
+
+                        </td>
+
+                        <td>
+
+                            <button class="btn btn-sm btn-warning">
+
+                                <i class="bi bi-pencil"></i>
+
+                            </button>
+
+                            <button class="btn btn-sm btn-info">
+
+                                <i class="bi bi-globe"></i>
+
+                            </button>
+
+                            <button class="btn btn-sm btn-secondary">
+
+                                <i class="bi bi-key"></i>
+
+                            </button>
+
+                            <button class="btn btn-sm btn-danger">
+
+                                <i class="bi bi-trash"></i>
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <div class="modal fade" id="addUserModal">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <form method="post" action="/admin/add_user">
+
+                    <div class="modal-header">
+
+                        <h5>Создать пользователя</h5>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="mb-3">
+
+                            <label>Логин</label>
+
+                            <input class="form-control" name="login" required>
+
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label>Пароль</label>
+
+                            <input class="form-control" type="password" name="password" required>
+
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label>Роль</label>
+
+                            <select class="form-select" name="role">
+
+                                <option value="admin">Администратор</option>
+                                <option value="operator">Оператор</option>
+                                <option value="user">Пользователь</option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button class="btn btn-success">
+
+                            Создать
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
+
 </html>
