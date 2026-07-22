@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Панель поиска аудио</title>
+    <style>body { font-family: sans-serif; padding: 30px; }</style>
+</head>
+<body>
+    <div style="float: right;"><a href="/logout">Выйти</a></div>
+    <h2>Поиск аудио фрагментов</h2>
+    <p>Пользователь: <b>{{ user.login }}</b></p>
+
+    <hr>
+    <form action="/search" method="post">
+        <h3>Параметры поиска</h3>
+        <label>Режим поиска:</label><br>
+        <input type="radio" name="search_mode" value="keywords" checked required> По ключевым словам (Whisper)<br>
+        <input type="radio" name="search_mode" value="voiceprint"> По отпечатку голоса<br><br>
+
+        <label>Ключевые слова или ID отпечатка:</label><br>
+        <input type="text" name="query" placeholder="Например: 'бомба' или ID_123" required size="40"><br><br>
+
+        <label>Путь к папке с аудиозаписями (на сервере):</label><br>
+        <input type="text" name="source_folder" placeholder="/path/to/10_million_audios/" required size="50"><br><br>
+
+        <button type="submit" style="padding: 10px 20px; font-size: 16px;">Начать поиск</button>
+    </form>
+</body>
+</html>

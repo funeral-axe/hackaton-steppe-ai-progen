@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Панель Администратора</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px;}
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div style="float: right;"><a href="/logout">Выйти</a></div>
+    <h2>Панель Администратора</h2>
+    <p>Добро пожаловать, {{ user.login }}!</p>
+
+    <h3>Добавить пользователя</h3>
+    <form action="/admin/add_user" method="post">
+        <input type="text" name="login" placeholder="Логин" required>
+        <input type="password" name="password" placeholder="Пароль" required>
+        <select name="role">
+            <option value="user">Пользователь</option>
+            <option value="admin">Администратор</option>
+        </select>
+        <button type="submit">Создать</button>
+    </form>
+
+    <h3>Список пользователей</h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Логин</th>
+            <th>Роль</th>
+            <th>Дата создания</th>
+            <th>Действия</th>
+        </tr>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.login }}</td>
+            <td>{{ u.role }}</td>
+            <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><button>Редактировать</button></td> <!-- Кнопка заглушка для будущего JS -->
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
