@@ -4,6 +4,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, User, verify_password, get_password_hash
 from audio_processor import process_audio_files
+from datetime import datetime
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -34,16 +35,21 @@ async def login_page(request: Request):
 
 @app.post("/login")
 async def login_post(
-        response: Response,
-        login: str = Form(...),
-        password: str = Form(...),
-        db: Session = Depends(get_db)
+    response: Response,
+    login: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.login == login).first()
     if not user or not verify_password(password, user.password):
-        # При ошибке возвращаем на страницу входа
+        if not user.is_active:
+         return RedirectResponse(
+        "/login?error=blocked",
+        status_code=303
+    )
         return RedirectResponse(url="/login?error=1", status_code=303)
-
+    user.last_login = datetime.utcnow()
+    db.commit()
     # Успешная авторизация, перенаправление в зависимости от роли
     redirect_url = "/admin" if user.role == "admin" else "/"
     res = RedirectResponse(url=redirect_url, status_code=303)
@@ -69,19 +75,17 @@ async def index_page(request: Request, user: User = Depends(get_current_user)):
 
     # Страница обычного пользователя (поиск)
     return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={"user": user}
+        request=request, name="index.html", context={"user": user}
     )
 
 
 @app.post("/search")
 async def start_search(
-        background_tasks: BackgroundTasks,
-        search_mode: str = Form(...),
-        query: str = Form(...),
-        source_folder: str = Form(...),
-        user: User = Depends(get_current_user)
+    background_tasks: BackgroundTasks,
+    search_mode: str = Form(...),
+    query: str = Form(...),
+    source_folder: str = Form(...),
+    user: User = Depends(get_current_user),
 ):
     if not user or user.role != "user":
         return RedirectResponse(url="/login", status_code=303)
@@ -95,9 +99,9 @@ async def start_search(
 
 @app.get("/admin")
 async def admin_page(
-        request: Request,
-        user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if not user or user.role != "admin":
         return RedirectResponse(url="/login", status_code=303)
@@ -105,19 +109,17 @@ async def admin_page(
     users = db.query(User).all()
     # Страница администратора
     return templates.TemplateResponse(
-        request=request,
-        name="admin.html",
-        context={"user": user, "users": users}
+        request=request, name="admin.html", context={"user": user, "users": users}
     )
 
 
 @app.post("/admin/add_user")
 async def add_user(
-        login: str = Form(...),
-        password: str = Form(...),
-        role: str = Form(...),
-        user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    login: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if not user or user.role != "admin":
         return RedirectResponse(url="/login", status_code=303)
@@ -125,11 +127,7 @@ async def add_user(
     # Проверка, существует ли уже такой логин
     existing_user = db.query(User).filter(User.login == login).first()
     if not existing_user:
-        new_user = User(
-            login=login,
-            password=get_password_hash(password),
-            role=role
-        )
+        new_user = User(login=login, password=get_password_hash(password), role=role)
         db.add(new_user)
         db.commit()
 
