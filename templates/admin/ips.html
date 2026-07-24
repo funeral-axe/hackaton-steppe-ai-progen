@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Разрешенные IP{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Разрешенные IP</h1><p>Пустой список означает доступ с любого IP</p></div></div>
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="panel-card">
+      <div class="panel-title">Пользователи</div>
+      <div class="list-group list-group-flush">
+        {% for item in users %}
+        <a href="/admin/ips?user_id={{ item.id }}" class="list-group-item list-group-item-action {{ 'active' if selected_user and selected_user.id == item.id else '' }}">{{ item.login }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="panel-card">
+      {% if selected_user %}
+      <div class="panel-title">IP пользователя: {{ selected_user.login }}</div>
+      <form method="post" action="/admin/ips/add" class="row g-2 mb-4">
+        <input type="hidden" name="user_id" value="{{ selected_user.id }}">
+        <div class="col-md-4"><input class="form-control" name="ip_value" placeholder="192.168.1.10" required></div>
+        <div class="col-md-5"><input class="form-control" name="description" placeholder="Описание"></div>
+        <div class="col-md-3"><button class="btn btn-primary w-100">Добавить</button></div>
+      </form>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>IP</th><th>Описание</th><th>Добавлен</th><th></th></tr></thead>
+          <tbody>
+          {% for item in selected_user.allowed_ips %}
+          <tr>
+            <td class="fw-semibold">{{ item.ip_address }}</td><td>{{ item.description or '-' }}</td><td>{{ item.created_at.strftime('%d.%m.%Y') }}</td>
+            <td><form method="post" action="/admin/ips/delete" onsubmit="return confirm('Удалить IP?')"><input type="hidden" name="ip_id" value="{{ item.id }}"><input type="hidden" name="user_id" value="{{ selected_user.id }}"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form></td>
+          </tr>
+          {% else %}<tr><td colspan="4" class="text-secondary">Ограничения не заданы</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

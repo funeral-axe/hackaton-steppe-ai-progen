@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Журнал действий{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Журнал действий</h1><p>Действия администраторов</p></div></div>
+<div class="panel-card"><div class="table-responsive">
+<table class="table align-middle mb-0">
+<thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Тип</th><th>Объект</th><th>IP</th></tr></thead>
+<tbody>
+{% for item in logs %}
+<tr><td>{{ item.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ item.user.login if item.user else '-' }}</td><td>{{ item.action }}</td><td>{{ item.object_type or '-' }}</td><td>{{ item.object_name or '-' }}</td><td>{{ item.ip_address or '-' }}</td></tr>
+{% else %}<tr><td colspan="6" class="text-secondary">Записей нет</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

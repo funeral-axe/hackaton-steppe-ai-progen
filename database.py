@@ -19,7 +19,7 @@ from enum import Enum
 import uuid
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from passlib.context import CryptContext
-
+import bcrypt
 DATABASE_URL = "sqlite:///./audio_app.db"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -122,47 +122,48 @@ class SessionLog(Base):
     __tablename__ = "sessions"
 
     id = Column(Integer, primary_key=True)
-
-    user_id = Column(Integer, ForeignKey("users.id"))
-
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     session_token = Column(
         String(100),
         unique=True,
-        default=lambda: str(uuid.uuid4())
+        index=True,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
     )
-
-    ip_address = Column(String(50))
-
-    browser = Column(String(200))
-
-    login_time = Column(DateTime, default=datetime.utcnow)
-
-    last_activity = Column(DateTime, default=datetime.utcnow)
-
-    is_active = Column(Boolean, default=True)
+    ip_address = Column(String(50), nullable=False)
+    browser = Column(String(255), nullable=True)
+    login_time = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_activity = Column(DateTime, nullable=False, default=datetime.utcnow)
+    is_active = Column(Boolean, nullable=False, default=True)
 
     user = relationship("User", back_populates="sessions")
     
-class Settings(Base):
+class Setting(Base):
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
-
-    key = Column(String(100), unique=True)
-
-    value = Column(Text)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text, nullable=True)
 
 
 # Создание таблиц при запуске
-Base.metadata.create_all(bind=engine)
+def create_tables() -> None:
+    Base.metadata.create_all(bind=engine)
 
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def verify_password(password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(
+            password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    except (ValueError, TypeError):
+        return False
 
 
 # Функция для создания админа по умолчанию

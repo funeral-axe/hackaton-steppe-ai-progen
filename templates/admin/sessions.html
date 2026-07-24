@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Активные сессии{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Активные сессии</h1><p>Текущие подключения пользователей</p></div></div>
+<div class="panel-card"><div class="table-responsive">
+<table class="table align-middle mb-0">
+<thead><tr><th>Пользователь</th><th>IP</th><th>Вход</th><th>Последняя активность</th><th>Браузер</th><th></th></tr></thead>
+<tbody>
+{% for item in sessions %}
+<tr><td class="fw-semibold">{{ item.user.login }}</td><td>{{ item.ip_address }}</td><td>{{ item.login_time.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ item.last_activity.strftime('%d.%m.%Y %H:%M') }}</td><td class="text-truncate browser-cell">{{ item.browser or '-' }}</td>
+<td><form method="post" action="/admin/sessions/kill" onsubmit="return confirm('Завершить сессию?')"><input type="hidden" name="session_id" value="{{ item.id }}"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Завершить</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="text-secondary">Активных сессий нет</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}
