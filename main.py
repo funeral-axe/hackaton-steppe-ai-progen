@@ -1,28 +1,26 @@
 from __future__ import annotations
-import token
-
-# from django.contrib.gis import db
-# from requests import request, request, session
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from ipaddress import ip_address
-from fastapi.staticfiles import StaticFiles
 from typing import Optional
-from fastapi import FastAPI, Depends, Request, Form, Response, BackgroundTasks
-from fastapi.templating import Jinja2Templates
+
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from audio_processor import process_audio_files
-from datetime import datetime
-from datetime import datetime
-from uuid import uuid4
+
+from audio_processor import parse_keywords, run_index_job, search_audio
 from database import (
     AllowedIP,
     AuditLog,
+    AudioFile,
+    IndexJob,
     LoginLog,
     SessionLocal,
-    Setting,
     SessionLog,
+    Setting,
     User,
     UserRole,
     create_tables,
@@ -31,22 +29,21 @@ from database import (
 )
 
 
-app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-
-
-# Зависимость для получения сессии БД
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
 def client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
+
+
 def valid_ip(value: str) -> bool:
     try:
         ip_address(value)
@@ -54,10 +51,12 @@ def valid_ip(value: str) -> bool:
     except ValueError:
         return False
 
+
 def is_ip_allowed(user: User, ip: str) -> bool:
     if not user.allowed_ips:
         return True
     return any(item.ip_address == ip for item in user.allowed_ips)
+
 
 def write_login_log(
     db: Session,
@@ -78,7 +77,8 @@ def write_login_log(
         )
     )
     db.commit()
-# Функция для записи действий
+
+
 def write_audit_log(
     db: Session,
     request: Request,
@@ -99,7 +99,6 @@ def write_audit_log(
     db.commit()
 
 
-# Зависимость для получения текущего пользователя из куки
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
@@ -123,24 +122,49 @@ def get_current_user(
     db.commit()
     return session.user
 
+
 def admin_required(user: Optional[User]) -> bool:
     return bool(user and user.role == UserRole.ADMIN.value)
+
+
+def create_default_admin() -> None:
+    db = SessionLocal()
+    try:
+        admin = db.query(User).filter(User.login == "admin").first()
+        if not admin:
+            db.add(
+                User(
+                    login="admin",
+                    password=get_password_hash("admin123"),
+                    role=UserRole.ADMIN.value,
+                    is_active=True,
+                )
+            )
+            db.commit()
+            print("Создан администратор: admin / admin123")
+    finally:
+        db.close()
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     create_tables()
-    #create_default_admin()
+    create_default_admin()
     yield
 
 
-app = FastAPI(title="Sonar", lifespan=lifespan)
+app = FastAPI(title="Audio Search Admin", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 @app.get("/login")
 async def login_page(request: Request):
-    # Исправленный синтаксис TemplateResponse
-    return templates.TemplateResponse(request=request, name="login.html",context={"error": request.query_params.get("error")},)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"error": request.query_params.get("error")},
+    )
 
 
 @app.post("/login")
@@ -208,41 +232,114 @@ async def logout(request: Request, db: Session = Depends(get_db)):
     return response
 
 
+
 @app.get("/")
 async def index_page(
     request: Request,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
-    if user.role == UserRole.ADMIN.value:
-        return RedirectResponse("/admin", status_code=303)
 
+    latest_job = db.query(IndexJob).order_by(IndexJob.id.desc()).first()
+    indexed_count = db.query(AudioFile).filter(AudioFile.status == "completed").count()
+    error_count = db.query(AudioFile).filter(AudioFile.status == "error").count()
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"user": user, "message": request.query_params.get("message")},
+        context={
+            "user": user,
+            "latest_job": latest_job,
+            "indexed_count": indexed_count,
+            "error_count": error_count,
+            "message": request.query_params.get("message"),
+            "error": request.query_params.get("error"),
+        },
     )
+
+
+@app.post("/index-folder")
+async def index_folder(
+    background_tasks: BackgroundTasks,
+    folder_path: str = Form(...),
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    folder_path = folder_path.strip()
+    if not folder_path:
+        return RedirectResponse("/?error=Укажите папку с аудиофайлами", status_code=303)
+
+    running = db.query(IndexJob).filter(IndexJob.status.in_(["queued", "running"])).first()
+    if running:
+        return RedirectResponse("/?error=Индексация уже выполняется", status_code=303)
+
+    job = IndexJob(folder_path=folder_path, status="queued")
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(run_index_job, job.id)
+    return RedirectResponse("/?message=Индексация запущена", status_code=303)
+
+
+@app.get("/index-status")
+async def index_status(
+    user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user:
+        return {"authenticated": False}
+    job = db.query(IndexJob).order_by(IndexJob.id.desc()).first()
+    if not job:
+        return {"status": "none"}
+    percent = round((job.processed_files / job.total_files) * 100) if job.total_files else 0
+    return {
+        "status": job.status,
+        "total": job.total_files,
+        "processed": job.processed_files,
+        "successful": job.successful_files,
+        "failed": job.failed_files,
+        "current_file": job.current_file,
+        "error": job.error_message,
+        "percent": percent,
+    }
 
 
 @app.post("/search")
 async def start_search(
-    background_tasks: BackgroundTasks,
-    search_mode: str = Form(...),
-    query: str = Form(...),
-    source_folder: str = Form(...),
+    request: Request,
+    keywords: str = Form(...),
+    search_mode: str = Form("any"),
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
+    try:
+        parsed = parse_keywords(keywords)
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request=request,
+            name="search_results.html",
+            context={"user": user, "error": str(exc), "results": [], "keywords": [], "search_mode": search_mode},
+            status_code=400,
+        )
 
-    background_tasks.add_task(
-        process_audio_files,
-        search_mode,
-        query,
-        source_folder,
+    results = search_audio(db, parsed, search_mode)
+    return templates.TemplateResponse(
+        request=request,
+        name="search_results.html",
+        context={
+            "user": user,
+            "error": None,
+            "results": results,
+            "keywords": parsed,
+            "search_mode": search_mode,
+        },
     )
-    return RedirectResponse("/?message=Поиск запущен в фоне", status_code=303)
 
 
 @app.get("/admin")
@@ -575,18 +672,47 @@ async def kill_session(
     return RedirectResponse("/admin/sessions", status_code=303)
 
 
-# @app.get("/admin/settings")
-# async def admin_settings(
-#     request: Request,
-#     current_user: Optional[User] = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     if not admin_required(current_user):
-#         return RedirectResponse("/login", status_code=303)
+@app.get("/admin/settings")
+async def admin_settings(
+    request: Request,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not admin_required(current_user):
+        return RedirectResponse("/login", status_code=303)
 
-#     settings = {item.key: item.value for item in db.query(Setting).all()}
-#     return templates.TemplateResponse(
-#         request=request,
-#         name="admin/settings.html",
-#         context={"user": current_user, "settings": settings, "active_page": "settings"},
-#     )
+    settings = {item.key: item.value for item in db.query(Setting).all()}
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/settings.html",
+        context={"user": current_user, "settings": settings, "active_page": "settings"},
+    )
+
+
+@app.post("/admin/settings")
+async def save_settings(
+    request: Request,
+    audio_folder: str = Form(""),
+    whisper_model: str = Form("base"),
+    max_file_size: str = Form("500"),
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not admin_required(current_user):
+        return RedirectResponse("/login", status_code=303)
+
+    values = {
+        "audio_folder": audio_folder.strip(),
+        "whisper_model": whisper_model.strip(),
+        "max_file_size": max_file_size.strip(),
+    }
+    for key, value in values.items():
+        item = db.query(Setting).filter(Setting.key == key).first()
+        if not item:
+            item = Setting(key=key, value=value)
+            db.add(item)
+        else:
+            item.value = value
+    db.commit()
+    write_audit_log(db, request, current_user, "Изменил настройки", "Settings", "")
+    return RedirectResponse("/admin/settings", status_code=303)
