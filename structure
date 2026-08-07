@@ -1,9 +1,0 @@
-audio_search_project/
-├── main.py                 # Главный файл приложения и маршруты
-├── database.py             # Настройка базы данных и модели
-├── audio_processor.py      # Логика обработки аудио (интеграция с Whisper)
-├── requirements.txt        # Зависимости
-└── templates/              # HTML шаблоны
-    ├── login.html
-    ├── admin.html
-    └── index.html

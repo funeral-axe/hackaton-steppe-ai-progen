@@ -6,12 +6,17 @@ from ipaddress import ip_address
 from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from audio_processor import parse_keywords, run_index_job, search_audio
+from services.word_search import (
+    create_online_job,
+    get_online_job,
+    run_online_search,
+)
 from database import (
     AllowedIP,
     AuditLog,
@@ -338,6 +343,137 @@ async def start_search(
             "results": results,
             "keywords": parsed,
             "search_mode": search_mode,
+        },
+    )
+
+
+@app.post("/online-search")
+async def start_online_search(
+    background_tasks: BackgroundTasks,
+    folder_path: str = Form(...),
+    keywords: str = Form(...),
+    search_mode: str = Form("any"),
+    model_name: str = Form("medium"),
+    language: str = Form("ru"),
+    user: Optional[User] = Depends(get_current_user),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        parsed = parse_keywords(keywords)
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/?error={str(exc)}",
+            status_code=303,
+        )
+
+    clean_folder = folder_path.strip()
+    if not clean_folder:
+        return RedirectResponse(
+            "/?error=Укажите папку с аудиофайлами",
+            status_code=303,
+        )
+
+    allowed_models = {"small", "medium", "large-v3", "large-v3-turbo"}
+    selected_model = model_name if model_name in allowed_models else "medium"
+    selected_language = None if language == "auto" else language
+    mode = "all" if search_mode == "all" else "any"
+
+    job_id = create_online_job(
+        folder_path=clean_folder,
+        keywords=parsed,
+        search_mode=mode,
+        model_name=selected_model,
+        language=selected_language,
+    )
+    background_tasks.add_task(
+        run_online_search,
+        job_id,
+        clean_folder,
+        keywords,
+        mode,
+        selected_model,
+        selected_language,
+    )
+    return RedirectResponse(
+        f"/online-search/progress/{job_id}",
+        status_code=303,
+    )
+
+
+@app.get("/online-search/progress/{job_id}", response_class=HTMLResponse)
+async def online_search_progress_page(
+    job_id: str,
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    job = get_online_job(job_id)
+    if not job:
+        return HTMLResponse("Задача онлайн-поиска не найдена", status_code=404)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="online_search_progress.html",
+        context={"user": user, "job": job, "job_id": job_id},
+    )
+
+
+@app.get("/api/online-search/{job_id}")
+async def online_search_status(
+    job_id: str,
+    user: Optional[User] = Depends(get_current_user),
+):
+    if not user:
+        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+
+    job = get_online_job(job_id)
+    if not job:
+        return JSONResponse({"error": "Задача не найдена"}, status_code=404)
+
+    return {
+        "status": job["status"],
+        "total_files": job["total_files"],
+        "processed_files": job["processed_files"],
+        "successful_files": job["successful_files"],
+        "failed_files": job["failed_files"],
+        "current_file": job["current_file"],
+        "percent": job["percent"],
+        "error": job["error"],
+        "results_count": len(job["results"]),
+    }
+
+
+@app.get("/online-search/results/{job_id}", response_class=HTMLResponse)
+async def online_search_results_page(
+    job_id: str,
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    job = get_online_job(job_id)
+    if not job:
+        return HTMLResponse("Результаты онлайн-поиска не найдены", status_code=404)
+    if job["status"] not in {"completed", "error"}:
+        return RedirectResponse(
+            f"/online-search/progress/{job_id}",
+            status_code=303,
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="online_search_results.html",
+        context={
+            "user": user,
+            "job": job,
+            "results": job["results"],
+            "keywords": job["keywords"],
+            "search_mode": job["search_mode"],
         },
     )
 

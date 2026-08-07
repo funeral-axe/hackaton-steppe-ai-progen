@@ -128,7 +128,7 @@ def run_index_job(job_id: int) -> None:
         job.total_files = len(files)
         db.commit()
 
-        model_name = _get_setting(db, "whisper_model", "large-v3")
+        model_name = _get_setting(db, "whisper_model", "base")
         model = _create_whisper_model(model_name)
 
         for path in files:
@@ -166,17 +166,9 @@ def run_index_job(job_id: int) -> None:
 
                 segments_iter, info = model.transcribe(
                     normalized_path,
-                    language="ru",
-                    task="transcribe",
-                    beam_size=10,
-                    best_of=10,
+                    beam_size=5,
                     vad_filter=True,
-                    vad_parameters={
-                        "min_silence_duration_ms": 500,
-                    },
-                    word_timestamps=True,
-                    condition_on_previous_text=True,
-                    temperature=0.0,
+                    word_timestamps=False,
                 )
                 transcript_parts: list[str] = []
                 new_segments: list[AudioSegment] = []
