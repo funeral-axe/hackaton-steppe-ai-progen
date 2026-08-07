@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Пользователи{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Пользователи</h1><p>Создание и управление учетными записями</p></div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="bi bi-person-plus"></i> Создать</button>
+</div>
+<div class="panel-card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead><tr><th>ID</th><th>Логин</th><th>Роль</th><th>Статус</th><th>Последний вход</th><th>Действия</th></tr></thead>
+            <tbody>
+            {% for item in users %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td class="fw-semibold">{{ item.login }}</td>
+                <td><span class="badge text-bg-primary">{{ item.role }}</span></td>
+                <td><span class="status-dot {{ 'status-active' if item.is_active else 'status-blocked' }}"></span>{{ 'Активен' if item.is_active else 'Заблокирован' }}</td>
+                <td>{{ item.last_login.strftime('%d.%m.%Y %H:%M') if item.last_login else '-' }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-outline-warning edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                            data-id="{{ item.id }}" data-login="{{ item.login }}" data-role="{{ item.role }}" data-active="{{ 'true' if item.is_active else 'false' }}"><i class="bi bi-pencil"></i></button>
+                    <a class="btn btn-sm btn-outline-info" href="/admin/ips?user_id={{ item.id }}"><i class="bi bi-globe"></i></a>
+                    <button class="btn btn-sm btn-outline-secondary password-btn" data-bs-toggle="modal" data-bs-target="#passwordModal"
+                            data-id="{{ item.id }}" data-login="{{ item.login }}"><i class="bi bi-key"></i></button>
+                    <form method="post" action="/admin/users/toggle">
+                        <input type="hidden" name="user_id" value="{{ item.id }}">
+                        <button class="btn btn-sm btn-outline-dark" {% if item.id == user.id %}disabled{% endif %}><i class="bi bi-lock"></i></button>
+                    </form>
+                    <form method="post" action="/admin/users/delete" onsubmit="return confirm('Удалить пользователя {{ item.login }}?')">
+                        <input type="hidden" name="user_id" value="{{ item.id }}">
+                        <button class="btn btn-sm btn-outline-danger" {% if item.id == user.id or item.login == 'admin' %}disabled{% endif %}><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}<tr><td colspan="6" class="text-secondary">Пользователей нет</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="/admin/users/add">
+      <div class="modal-header"><h5 class="modal-title">Новый пользователь</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <label class="form-label">Логин</label><input class="form-control mb-3" name="login" required>
+        <label class="form-label">Пароль</label><input class="form-control mb-3" type="password" name="password" minlength="6" required>
+        <label class="form-label">Роль</label>
+        <select class="form-select" name="role"><option value="user">Пользователь</option><option value="operator">Оператор</option><option value="admin">Администратор</option></select>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Создать</button></div>
+    </form>
+  </div></div>
+</div>
+
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="/admin/users/edit">
+      <input type="hidden" name="user_id" id="editUserId">
+      <div class="modal-header"><h5 class="modal-title">Редактировать пользователя</h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <label class="form-label">Логин</label><input class="form-control mb-3" name="login" id="editLogin" required>
+        <label class="form-label">Роль</label>
+        <select class="form-select mb-3" name="role" id="editRole"><option value="user">Пользователь</option><option value="operator">Оператор</option><option value="admin">Администратор</option></select>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="is_active" id="editActive"><label class="form-check-label" for="editActive">Активный пользователь</label></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary">Сохранить</button></div>
+    </form>
+  </div></div>
+</div>
+
+<div class="modal fade" id="passwordModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="/admin/users/password">
+      <input type="hidden" name="user_id" id="passwordUserId">
+      <div class="modal-header"><h5 class="modal-title">Смена пароля: <span id="passwordLogin"></span></h5><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><label class="form-label">Новый пароль</label><input class="form-control" type="password" name="password" minlength="6" required></div>
+      <div class="modal-footer"><button class="btn btn-primary">Изменить пароль</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Настройки</h1><p>Основные параметры приложения</p></div></div>
+<div class="panel-card settings-card">
+<form method="post" action="/admin/settings">
+  <div class="mb-3"><label class="form-label">Папка с аудио</label><input class="form-control" name="audio_folder" value="{{ settings.get('audio_folder', '') }}" placeholder="D:\audio"></div>
+  <div class="mb-3"><label class="form-label">Модель Whisper</label>
+    <select class="form-select" name="whisper_model">
+      {% for model in ['tiny','base','small','medium','large'] %}<option value="{{ model }}" {{ 'selected' if settings.get('whisper_model', 'base') == model else '' }}>{{ model }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="mb-4"><label class="form-label">Максимальный размер файла, МБ</label><input class="form-control" type="number" min="1" name="max_file_size" value="{{ settings.get('max_file_size', '500') }}"></div>
+  <button class="btn btn-primary">Сохранить настройки</button>
+</form>
+</div>
+{% endblock %}

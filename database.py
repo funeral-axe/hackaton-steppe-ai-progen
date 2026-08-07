@@ -1,32 +1,21 @@
-from xmlrpc.client import Boolean
+from __future__ import annotations
 
-from sqlalchemy import (
-    Text,
-    create_engine,
-    Column,
-    Integer,
-    String,
-    DateTime,
-    Boolean,
-    ForeignKey,
-    text,
-)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from passlib.context import CryptContext
 from enum import Enum
 import uuid
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-from passlib.context import CryptContext
 
-DATABASE_URL = "sqlite:///./audio_app.db"
+import bcrypt
+from sqlalchemy import (
+    Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text,
+    UniqueConstraint, create_engine,
+)
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+DATABASE_URL = "sqlite:///./audio_search.db"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserRole(str, Enum):
@@ -37,145 +26,132 @@ class UserRole(str, Enum):
 
 class User(Base):
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True, index=True)
-
-    login = Column(String(100), unique=True, nullable=False)
-
+    login = Column(String(100), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
+    role = Column(String(30), nullable=False, default=UserRole.USER.value)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
 
-    role = Column(String(30), default=UserRole.USER.value)
-
-    is_active = Column(Boolean, default=True)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    last_login = Column(DateTime)
-
-    allowed_ips = relationship(
-        "AllowedIP", back_populates="user", cascade="all, delete"
-    )
-
-    sessions = relationship("SessionLog", back_populates="user", cascade="all, delete")
-
-    login_logs = relationship("LoginLog", back_populates="user", cascade="all, delete")
-
-    audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete")
+    allowed_ips = relationship("AllowedIP", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("SessionLog", back_populates="user", cascade="all, delete-orphan")
+    login_logs = relationship("LoginLog", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
 
 
 class AllowedIP(Base):
     __tablename__ = "allowed_ips"
-
     id = Column(Integer, primary_key=True)
-
-    user_id = Column(Integer, ForeignKey("users.id"))
-
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     ip_address = Column(String(50), nullable=False)
-
-    description = Column(String(255))
-
+    description = Column(String(255), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     user = relationship("User", back_populates="allowed_ips")
-    
+
+
 class LoginLog(Base):
     __tablename__ = "login_logs"
-
     id = Column(Integer, primary_key=True)
-
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-
-    login = Column(String(100))
-
-    ip_address = Column(String(50))
-
-    browser = Column(String(150))
-
-    operating_system = Column(String(150))
-
-    status = Column(String(20))
-
-    message = Column(Text)
-
-    login_time = Column(DateTime, default=datetime.utcnow)
-
+    login = Column(String(100), nullable=False)
+    ip_address = Column(String(50), nullable=False)
+    browser = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False)
+    message = Column(Text, nullable=True)
+    login_time = Column(DateTime, nullable=False, default=datetime.utcnow)
     user = relationship("User", back_populates="login_logs")
-    
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-
     id = Column(Integer, primary_key=True)
-
-    user_id = Column(Integer, ForeignKey("users.id"))
-
-    action = Column(String(255))
-
-    object_type = Column(String(100))
-
-    object_name = Column(String(255))
-
-    ip_address = Column(String(50))
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(255), nullable=False)
+    object_type = Column(String(100), nullable=True)
+    object_name = Column(String(255), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     user = relationship("User", back_populates="audit_logs")
-    
+
+
 class SessionLog(Base):
     __tablename__ = "sessions"
-
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    session_token = Column(String(100), unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    ip_address = Column(String(50), nullable=False)
+    browser = Column(String(255), nullable=True)
+    login_time = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_activity = Column(DateTime, nullable=False, default=datetime.utcnow)
+    is_active = Column(Boolean, nullable=False, default=True)
+    user = relationship("User", back_populates="sessions")
 
-    user_id = Column(Integer, ForeignKey("users.id"))
 
-    session_token = Column(
-        String(100),
-        unique=True,
-        default=lambda: str(uuid.uuid4())
+class Setting(Base):
+    __tablename__ = "settings"
+    id = Column(Integer, primary_key=True)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text, nullable=True)
+
+
+class AudioFile(Base):
+    __tablename__ = "audio_files"
+    id = Column(Integer, primary_key=True, index=True)
+    file_name = Column(String(500), nullable=False)
+    file_path = Column(String(2000), unique=True, nullable=False, index=True)
+    file_size = Column(Integer, nullable=True)
+    modified_timestamp = Column(Float, nullable=True)
+    transcription = Column(Text, nullable=True)
+    language = Column(String(30), nullable=True)
+    duration = Column(Float, nullable=True)
+    status = Column(String(30), nullable=False, default="pending", index=True)
+    error_message = Column(Text, nullable=True)
+    indexed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    segments = relationship(
+        "AudioSegment", back_populates="audio_file",
+        cascade="all, delete-orphan", order_by="AudioSegment.start_time"
     )
 
-    ip_address = Column(String(50))
 
-    browser = Column(String(200))
+class AudioSegment(Base):
+    __tablename__ = "audio_segments"
+    id = Column(Integer, primary_key=True, index=True)
+    audio_file_id = Column(Integer, ForeignKey("audio_files.id", ondelete="CASCADE"), nullable=False, index=True)
+    start_time = Column(Float, nullable=False)
+    end_time = Column(Float, nullable=False)
+    text = Column(Text, nullable=False)
+    audio_file = relationship("AudioFile", back_populates="segments")
 
-    login_time = Column(DateTime, default=datetime.utcnow)
 
-    last_activity = Column(DateTime, default=datetime.utcnow)
-
-    is_active = Column(Boolean, default=True)
-
-    user = relationship("User", back_populates="sessions")
-    
-class Settings(Base):
-    __tablename__ = "settings"
-
+class IndexJob(Base):
+    __tablename__ = "index_jobs"
     id = Column(Integer, primary_key=True)
-
-    key = Column(String(100), unique=True)
-
-    value = Column(Text)
-
-
-# Создание таблиц при запуске
-Base.metadata.create_all(bind=engine)
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
+    folder_path = Column(String(2000), nullable=False)
+    status = Column(String(30), nullable=False, default="queued")
+    total_files = Column(Integer, nullable=False, default=0)
+    processed_files = Column(Integer, nullable=False, default=0)
+    successful_files = Column(Integer, nullable=False, default=0)
+    failed_files = Column(Integer, nullable=False, default=0)
+    current_file = Column(String(500), nullable=True)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
-# Функция для создания админа по умолчанию
-def create_default_admin():
-    db = SessionLocal()
-    admin = db.query(User).filter(User.login == "admin").first()
-    if not admin:
-        new_admin = User(
-            login="admin", password=get_password_hash("admin"), role="admin"
-        )
-        db.add(new_admin)
-        db.commit()
-    db.close()
+def get_password_hash(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-create_default_admin()
+def verify_password(password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
+
+
+def create_tables() -> None:
+    Base.metadata.create_all(bind=engine)

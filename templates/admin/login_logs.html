@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}История входов{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>История входов</h1><p>Успешные и неуспешные попытки авторизации</p></div></div>
+<div class="panel-card"><div class="table-responsive">
+<table class="table align-middle mb-0">
+<thead><tr><th>Время</th><th>Логин</th><th>IP</th><th>Статус</th><th>Причина</th><th>Браузер</th></tr></thead>
+<tbody>
+{% for item in logs %}
+<tr><td>{{ item.login_time.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ item.login }}</td><td>{{ item.ip_address }}</td>
+<td><span class="badge {{ 'text-bg-success' if item.status == 'success' else 'text-bg-danger' }}">{{ item.status }}</span></td>
+<td>{{ item.message or '-' }}</td><td class="text-truncate browser-cell">{{ item.browser or '-' }}</td></tr>
+{% else %}<tr><td colspan="6" class="text-secondary">Записей нет</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

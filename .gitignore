@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 *.db
 templates/sonar3.mp4
+tmp_speechbrain_model/
