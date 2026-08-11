@@ -26,6 +26,7 @@ import torchaudio.compliance.kaldi as kaldi
 
 from speechbrain.inference.speaker import EncoderClassifier
 from database import get_db, User, VoicePrint
+from auth_dependencies import get_current_user
 
 classifier = EncoderClassifier.from_hparams(
     source="speechbrain/spkrec-ecapa-voxceleb",
@@ -38,12 +39,6 @@ templates = Jinja2Templates(directory="templates")
 AUDIO_DIR = "app/storage/audio"
 os.makedirs(AUDIO_DIR, exist_ok=True)
 
-
-def get_current_user(request: Request, db: Session = Depends(get_db)):
-    login = request.cookies.get("session_user")
-    if not login:
-        return None
-    return db.query(User).filter(User.login == login).first()
 
 
 def create_voiceprint(audio_path: str):

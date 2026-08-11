@@ -18,7 +18,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydub import AudioSegment
-from routers.auth import get_current_user
+from auth_dependencies import get_current_user
 from services.progress_manager import progress_manager
 from services.voice_engine import run_background_voice_search
 
