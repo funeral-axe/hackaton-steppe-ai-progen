@@ -7,14 +7,22 @@ import uuid
 import bcrypt
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text,
-    UniqueConstraint, create_engine,
+    UniqueConstraint, create_engine, text,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from pgvector.sqlalchemy import Vector
 
-DATABASE_URL = "sqlite:///./audio_search.db"
+DATABASE_URL = "postgresql+psycopg2://voice_user:voice_password@localhost:5434/voice_db"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
 Base = declarative_base()
 
 
@@ -142,6 +150,31 @@ class IndexJob(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+
+class VoicePrint(Base):
+    __tablename__ = "voiceprints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    un = Column(String, nullable=True)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    middle_name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    audio_path = Column(String, nullable=False)
+    voiceprint = Column(Vector(192), nullable=False)
+    created_by = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -154,4 +187,9 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def create_tables() -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            text("CREATE EXTENSION IF NOT EXISTS vector")
+        )
+
     Base.metadata.create_all(bind=engine)
