@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
 annotated-doc==0.0.4
 annotated-types==0.8.0
 anyio==4.14.2
@@ -22,7 +23,7 @@ huggingface_hub==1.25.1
 idna==3.18
 Jinja2==3.1.6
 MarkupSafe==3.0.3
-numpy==2.4.6
+numpy==1.26.4
 onnxruntime==1.28.0
 packaging==26.2
 protobuf==7.35.1
@@ -42,3 +43,10 @@ watchfiles==1.2.0
 websockets==16.1.1
 psycopg2-binary==2.9.12
 pgvector==0.5.0
+HyperPyYAML==1.2.3
+pydub==0.25.1
+scipy==1.17.1
+soundfile==0.14.0
+speechbrain==1.1.0
+torch==2.4.1+cu121
+torchaudio==2.4.1+cu121
