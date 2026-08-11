@@ -1,4 +1,4 @@
-version: '3.9'
+﻿version: '3.9'
 
 services:
   postgres:
@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: voice_db
 
     ports:
-      - "5432:5432"
+      - "5434:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
