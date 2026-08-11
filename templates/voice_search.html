@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Поиск по голосу | SonAr</title>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f9;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 8px;
+        }
+        input[type="file"], input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        #waveform {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 10px;
+            min-height: 128px;
+        }
+        .waveform-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .zoom-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .zoom-container label {
+            margin-bottom: 0;
+            font-size: 13px;
+            color: #475569;
+            white-space: nowrap;
+        }
+        .zoom-container input[type="range"] {
+            cursor: pointer;
+        }
+        .help-text {
+            font-size: 13px;
+            color: #666;
+        }
+        .audio-buttons-group {
+            display: flex;
+            gap: 6px;
+        }
+        .btn-audio-ctrl {
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+        }
+        .btn-play { background: #10b981; }
+        .btn-pause { background: #f59e0b; }
+        .btn-stop { background: #ef4444; }
+        .btn-audio-ctrl:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .folder-check-row { display: flex; gap: 10px; }
+        .btn-secondary {
+            padding: 10px 15px;
+            background: #64748b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-secondary:hover { background: #475569; }
+        .btn {
+            padding: 12px 20px;
+            background: #2a5298;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .btn:hover { background: #1e3c72; }
+        .btn:disabled { background: #a0aec0; cursor: not-allowed; }
+
+        /* Прогресс-бар и панель управления процессом */
+        #progress-container {
+            margin-top: 25px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .timer-display {
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: 700;
+            color: #2a5298;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .progress-bar-wrapper {
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 22px;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            background: #2a5298;
+            width: 0%;
+            height: 100%;
+            transition: width 0.4s ease;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            color: #334155;
+            font-size: 14px;
+        }
+        .process-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-process {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+        }
+        .btn-pause-task { background: #f59e0b; }
+        .btn-resume-task { background: #10b981; display: none; }
+        .btn-cancel-task { background: #ef4444; }
+        .btn-process:hover { opacity: 0.9; }
+        .btn-process:disabled { background: #cbd5e1; cursor: not-allowed; opacity: 1; }
+
+        .status-box-success {
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            color: #047857;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div>
+            <a href="/" style="text-decoration: none; color: #2a5298; font-weight: 500;">&larr; Назад к выбору поиска</a>
+            <h2 style="margin: 5px 0 0 0;">Поиск по голосу</h2>
+        </div>
+        <div style="text-align: right; color: #777; font-size: 14px;">
+            <p style="margin:0;">Дата: <b>{{ date if date else "Не указана" }}</b></p>
+            <p style="margin:0;">Номер: <b>{{ number if number else "Не указан" }}</b></p>
+        </div>
+    </div>
+
+    <form id="voiceSearchForm">
+        <div class="form-group">
+            <label for="audioUpload">1. Загрузите аудиозапись с образцом голоса (mp3, wav, m4a):</label>
+            <input type="file" id="audioUpload" accept="audio/*" required>
+        </div>
+
+        <div class="form-group">
+            <label>2. Выделите отрезок голоса на графике (от 3 до 5 секунд):</label>
+            <div id="waveform"></div>
+            <div class="zoom-container">
+                <label for="zoomSlider">🔍 Зум (масштаб):</label>
+                <input type="range" id="zoomSlider" min="10" max="500" value="50" style="width: 100%;" disabled>
+            </div>
+            <div class="waveform-controls">
+                <div class="help-text" id="timeInfo">Выберите файл выше, чтобы сформировать звуковую дорожку.</div>
+                <div class="audio-buttons-group">
+                    <button type="button" class="btn-audio-ctrl btn-play" id="playSegmentBtn" disabled>▶ Воспроизвести</button>
+                    <button type="button" class="btn-audio-ctrl btn-pause" id="pauseSegmentBtn" disabled>⏸ Пауза</button>
+                    <button type="button" class="btn-audio-ctrl btn-stop" id="stopSegmentBtn" disabled>⏹ Стоп</button>
+                </div>
+            </div>
+            <input type="hidden" id="startTime" name="start">
+            <input type="hidden" id="endTime" name="end">
+        </div>
+
+        <div class="form-group">
+            <label for="folderPath">3. Полный путь к папке с аудиозаписями для сканирования:</label>
+            <div class="folder-check-row">
+                <input type="text" id="folderPath" placeholder="Например: /Users/sakly/Downloads" required>
+                <button type="button" class="btn-secondary" id="checkFolderBtn">Проверить папку</button>
+            </div>
+            <div class="help-text" id="folderInfo" style="margin-top: 6px; font-weight: 500; color: #2a5298;"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="thresholdInput">4. Порог сходства (%):</label>
+            <input type="number" id="thresholdInput" name="threshold" value="75" min="0" max="100" step="0.5" required>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn" disabled>Запустить фоновый поиск</button>
+    </form>
+
+    <!-- Блок шкалы прогресса и управления процессом -->
+    <div id="progress-container">
+        <div class="progress-header">
+            <span id="progressStatusText" style="font-weight: 600; color: #334155; font-size: 14px;">Подготовка к сканированию...</span>
+            <div class="timer-display" id="searchTimer">⏱ 00:00:00</div>
+        </div>
+        <div class="progress-info">
+            <span id="processedInfo">Обработано записей: 0</span>
+            <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-wrapper">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="process-actions">
+            <button type="button" class="btn-process btn-pause-task" id="pauseTaskBtn">⏸ Приостановить</button>
+            <button type="button" class="btn-process btn-resume-task" id="resumeTaskBtn">▶ Возобновить</button>
+            <button type="button" class="btn-process btn-cancel-task" id="cancelTaskBtn">⏹ Отменить поиск</button>
+        </div>
+    </div>
+
+    <div id="results-container"></div>
+</div>
+
+<script>
+    const audioUpload = document.getElementById('audioUpload');
+    const submitBtn = document.getElementById('submitBtn');
+    const playSegmentBtn = document.getElementById('playSegmentBtn');
+    const pauseSegmentBtn = document.getElementById('pauseSegmentBtn');
+    const stopSegmentBtn = document.getElementById('stopSegmentBtn');
+    const zoomSlider = document.getElementById('zoomSlider');
+    const timeInfo = document.getElementById('timeInfo');
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+    const thresholdInput = document.getElementById('thresholdInput');
+    const folderPathInput = document.getElementById('folderPath');
+    const checkFolderBtn = document.getElementById('checkFolderBtn');
+    const folderInfo = document.getElementById('folderInfo');
+
+    const progressContainer = document.getElementById('progress-container');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressStatusText = document.getElementById('progressStatusText');
+    const processedInfo = document.getElementById('processedInfo');
+    const searchTimerDisplay = document.getElementById('searchTimer');
+    const resultsContainer = document.getElementById('results-container');
+
+    const pauseTaskBtn = document.getElementById('pauseTaskBtn');
+    const resumeTaskBtn = document.getElementById('resumeTaskBtn');
+    const cancelTaskBtn = document.getElementById('cancelTaskBtn');
+
+    let wavesurfer = null;
+    let wsRegions = null;
+    let activeRegion = null;
+    let checkTimeHandler = null;
+    let pollInterval = null;
+
+    let timerInterval = null;
+    let secondsElapsed = 0;
+
+    function formatTime(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function formatFinalTime(totalSeconds) {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.round((totalSeconds % 3600) / 60);
+
+        let parts = [];
+        if (hours > 0) {
+            parts.push(`${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'}`);
+        }
+        if (minutes > 0 || hours === 0) {
+            parts.push(`${minutes} ${minutes === 1 ? 'минута' : minutes < 5 ? 'минуты' : 'минут'}`);
+        }
+        return parts.join(' ');
+    }
+
+    function startTimer() {
+        if (timerInterval) return;
+        timerInterval = setInterval(() => {
+            secondsElapsed++;
+            searchTimerDisplay.innerText = `⏱ ${formatTime(secondsElapsed)}`;
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function resetTimer() {
+        pauseTimer();
+        secondsElapsed = 0;
+        searchTimerDisplay.innerText = `⏱ 00:00:00`;
+    }
+
+    audioUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (wavesurfer) wavesurfer.destroy();
+
+        wavesurfer = WaveSurfer.create({
+            container: '#waveform',
+            waveColor: '#cbd5e1',
+            progressColor: '#2a5298',
+            height: 128,
+            url: URL.createObjectURL(file)
+        });
+
+        wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+
+        wavesurfer.on('decode', () => {
+            const totalDuration = wavesurfer.getDuration();
+            if (totalDuration < 3) {
+                alert("Аудиофайл слишком короткий (минимум 3 секунды).");
+                submitBtn.disabled = true;
+                return;
+            }
+
+            activeRegion = wsRegions.addRegion({
+                start: 0,
+                end: Math.min(3, totalDuration),
+                color: 'rgba(42, 82, 152, 0.35)',
+                resize: true,
+                drag: true,
+            });
+
+            updateRegionInfo(activeRegion);
+            submitBtn.disabled = false;
+            playSegmentBtn.disabled = false;
+            pauseSegmentBtn.disabled = false;
+            stopSegmentBtn.disabled = false;
+            zoomSlider.disabled = false;
+            zoomSlider.value = 50;
+
+            activeRegion.on('update', () => {
+                let duration = activeRegion.end - activeRegion.start;
+                if (duration < 3) activeRegion.end = activeRegion.start + 3;
+                else if (duration > 5) activeRegion.end = activeRegion.start + 5;
+                updateRegionInfo(activeRegion);
+            });
+        });
+    });
+
+    zoomSlider.addEventListener('input', (e) => {
+        if (wavesurfer) wavesurfer.zoom(Number(e.target.value));
+    });
+
+    function updateRegionInfo(region) {
+        startTimeInput.value = region.start.toFixed(2);
+        endTimeInput.value = region.end.toFixed(2);
+        timeInfo.innerHTML = `Длина выделения: <b>${(region.end - region.start).toFixed(2)} сек.</b>`;
+    }
+
+    playSegmentBtn.addEventListener('click', () => {
+        if (!wavesurfer || !activeRegion) return;
+        wavesurfer.setTime(activeRegion.start);
+        wavesurfer.play();
+        checkTimeHandler = () => {
+            if (wavesurfer.getCurrentTime() >= activeRegion.end) {
+                wavesurfer.pause();
+                wavesurfer.un('timeupdate', checkTimeHandler);
+            }
+        };
+        wavesurfer.on('timeupdate', checkTimeHandler);
+    });
+
+    pauseSegmentBtn.addEventListener('click', () => wavesurfer && wavesurfer.pause());
+    stopSegmentBtn.addEventListener('click', () => {
+        if (wavesurfer) { wavesurfer.pause(); wavesurfer.setTime(activeRegion.start); }
+    });
+
+    checkFolderBtn.addEventListener('click', async () => {
+        const pathVal = folderPathInput.value.trim();
+        if (!pathVal) { alert('Введите путь к папке!'); return; }
+
+        folderInfo.innerHTML = '⏳ Проверяем папку...';
+        const formData = new FormData();
+        formData.append('folder_path', pathVal);
+
+        const resp = await fetch('/api/check_folder', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.error) {
+            folderInfo.innerHTML = `<span style="color:red;">${data.error}</span>`;
+        } else {
+            folderInfo.innerHTML = `✅ Найдено аудиозаписей: <b>${data.total_files}</b>`;
+        }
+    });
+
+    document.getElementById('voiceSearchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        progressContainer.style.display = 'block';
+        resultsContainer.innerHTML = '';
+
+        // Разблокируем кнопки управления на случай повторного запуска
+        pauseTaskBtn.disabled = false;
+        cancelTaskBtn.disabled = false;
+
+        resetTimer();
+        startTimer();
+
+        const formData = new FormData();
+        formData.append('audio', audioUpload.files[0]);
+        formData.append('start', startTimeInput.value);
+        formData.append('end', endTimeInput.value);
+        formData.append('folder_path', folderPathInput.value);
+        formData.append('threshold', thresholdInput.value);
+
+        const resp = await fetch('/api/search_voice', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (data.error) {
+            pauseTimer();
+            progressContainer.style.display = 'none';
+            submitBtn.disabled = false;
+            alert(data.error);
+            return;
+        }
+
+        pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch('/api/search_progress');
+                const status = await statusResp.json();
+
+                if (status.total > 0) {
+                    const rawPercent = Math.round((status.processed / status.total) * 100);
+                    const percent = Math.min(100, Math.max(0, rawPercent));
+
+                    progressBarFill.style.width = percent + '%';
+                    progressPercent.innerText = percent + '%';
+                    processedInfo.innerText = `Обработано записей: ${status.processed} из ${status.total}`;
+
+                    if (status.status === 'paused') {
+                        progressStatusText.innerText = '⏸ Поиск приостановлен.';
+                        pauseTimer();
+                    } else if (status.status === 'running') {
+                        progressStatusText.innerText = 'Сканирование папки...';
+                        startTimer();
+                    }
+                }
+
+                if (status.results_url && (status.status === 'paused' || status.status === 'completed')) {
+                    const isPaused = status.status === 'paused';
+                    let timeMessage = '';
+
+                    if (status.status === 'completed') {
+                        pauseTimer();
+                        const totalFormatted = formatFinalTime(secondsElapsed);
+                        timeMessage = `<br>Затраченное время: <b>${totalFormatted}</b>`;
+
+                        // Делаем кнопки паузы и отмены неактивными при успешном завершении
+                        pauseTaskBtn.disabled = true;
+                        cancelTaskBtn.disabled = true;
+                    }
+
+                    resultsContainer.innerHTML = `
+                        <div class="status-box-success" style="${isPaused ? 'background: #fffbeb; border-color: #f59e0b; color: #b45309;' : ''}">
+                            <strong style="font-size: 16px;">${status.status === 'completed' ? 'Поиск успешно завершен!' : 'Поиск приостановлен пользователем'}</strong><br><br>
+                            Обработано записей: <b>${status.processed} из ${status.total}</b>${timeMessage}<br><br>
+                            <a href="${status.results_url}" target="_blank" class="btn">📂 Открыть папку с результатами</a>
+                        </div>`;
+                }
+
+                if (status.status === 'completed') {
+                    clearInterval(pollInterval);
+                    submitBtn.disabled = false;
+                    pauseTaskBtn.style.display = 'inline-block';
+                    resumeTaskBtn.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Ошибка опроса прогресса:", err);
+            }
+        }, 1000);
+    });
+
+    pauseTaskBtn.addEventListener('click', async () => {
+        await fetch('/api/search_pause', { method: 'POST' });
+        pauseTimer();
+        pauseTaskBtn.style.display = 'none';
+        resumeTaskBtn.style.display = 'inline-block';
+    });
+
+    resumeTaskBtn.addEventListener('click', async () => {
+        await fetch('/api/search_resume', { method: 'POST' });
+        startTimer();
+        resumeTaskBtn.style.display = 'none';
+        pauseTaskBtn.style.display = 'inline-block';
+        resultsContainer.innerHTML = '';
+    });
+
+    cancelTaskBtn.addEventListener('click', async () => {
+        if (!confirm('Вы уверены, что хотите остановить поиск? Найденое ранее сохранится в папке.')) return;
+
+        await fetch('/api/search_cancel', { method: 'POST' });
+
+        clearInterval(pollInterval);
+        resetTimer();
+        progressContainer.style.display = 'none';
+        submitBtn.disabled = false;
+        pauseTaskBtn.style.display = 'inline-block';
+        resumeTaskBtn.style.display = 'none';
+
+        alert('Поиск остановлен. Все совпадения сохранены на диске.');
+    });
+</script>
+</body>
+</html>

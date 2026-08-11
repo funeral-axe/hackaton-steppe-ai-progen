@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель оператора — SonAr</title>
+
+    <script src="https://unpkg.com/wavesurfer.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #f6f7f9;
+            --card-bg: #ffffff;
+            --text-main: #2c2c2c;
+            --text-muted: #666666;
+            --border-color: #e5e7eb;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 16px 30px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .navbar span {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .navbar a {
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+            transition: 0.2s;
+        }
+
+        .navbar a:hover {
+            background: #fecaca;
+        }
+
+        .app-container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.04);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .badge {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Формы и поля */
+        .upload-block input, .search-box input, .field input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: #fafafa;
+            box-sizing: border-box;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .upload-block input:focus, .search-box input:focus, .field input:focus {
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .waveform {
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .controls button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: #e0e7ff;
+            color: #3730a3;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .controls button:hover {
+            background: #c7d2fe;
+        }
+
+        .region-data {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field label {
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: var(--text-muted);
+        }
+
+        .btn-primary {
+            margin-top: 25px;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* Вкладки поиска */
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .search-results {
+            margin-top: 20px;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div>Оператор: <span>{{ user.username }}</span></div>
+    <div><a href="/logout">Выйти из системы</a></div>
+</nav>
+
+<div class="app-container">
+
+    <!-- БЛОК 1: ДОБАВЛЕНИЕ НОВОГО СЛЕПКА (СВЕРХУ) -->
+    <section class="card">
+        <div class="card-title">➕ Создание биометрического слепка VoicePrint</div>
+
+        <div class="upload-block" style="margin-top: 15px;">
+            <input type="file" id="audioFile" accept="audio/*">
+        </div>
+
+        <div id="waveform" class="waveform"></div>
+
+        <div class="controls">
+            <button onclick="playAudio()">▶ Play</button>
+            <button onclick="pauseAudio()">⏸ Pause</button>
+            <button onclick="zoomIn()">＋ Масштаб</button>
+            <button onclick="zoomOut()">－ Масштаб</button>
+            <button onclick="fixDuration()" style="background: #fef08a; color: #854d0e; font-weight: bold;">🛠 Исправить длину (3-10с)</button>
+        </div>
+
+        <div class="region-data">
+            <div>Начало: <span id="startTime">0.00</span> сек</div>
+            <div>Конец: <span id="endTime">0.00</span> сек</div>
+            <div>Длина: <span id="regionDuration" style="font-weight: bold; color: var(--primary);">0.00</span> сек</div>
+        </div>
+
+        <div class="form-grid">
+            <div class="field">
+                <label>ИИН *</label>
+                <input type="text" id="un" placeholder="12-значный ИИН">
+            </div>
+            <div class="field">
+                <label>Телефон *</label>
+                <input type="text" id="phone" placeholder="77012345678">
+            </div>
+            <div class="field">
+                <label>Фамилия *</label>
+                <input type="text" id="lastName" placeholder="Введите фамилию">
+            </div>
+            <div class="field">
+                <label>Имя *</label>
+                <input type="text" id="firstName" placeholder="Введите имя">
+            </div>
+            <div class="field" style="grid-column: span 2;">
+                <label>Отчество</label>
+                <input type="text" id="middleName" placeholder="Если имеется (необязательно)">
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="uploadNewVoiceprint()">Сохранить VoicePrint в базу</button>
+        <div id="status" class="status"></div>
+    </section>
+
+    <!-- БЛОК 2: ПОИСК ПО БАЗЕ (СНИЗУ С ВЫБОРОМ МЕТОДА) -->
+    <section class="card">
+        <div class="card-header">
+            <div class="card-title">🔍 Поиск по базе данных VoicePrint</div>
+            <div class="badge">Всего записей в базе: <span>{{ total_count }}</span></div>
+        </div>
+
+        <!-- Переключатель режима поиска -->
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('tab-un', event)">По ИИН или Телефону</button>
+            <button class="tab-btn" onclick="switchTab('tab-bio', event)">По отрезку голоса (Биометрия)</button>
+        </div>
+
+        <!-- Режим 1: Поиск по ИИН или Телефону -->
+        <div id="tab-un" class="tab-content active">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="searchInput" placeholder="Введите ИИН или номер телефона для поиска..." value="{{ search or '' }}">
+                <button class="btn-primary" style="margin-top: 0; width: 140px;" onclick="filterBySearch()">Найти</button>
+            </div>
+
+            <div class="search-results">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ИИН (UN)</th>
+                            <th>ФИО</th>
+                            <th>Телефон</th>
+                            <th>Аудио</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if results %}
+                            {% for r in results %}
+                            <tr>
+                                <td>{{ r.id }}</td>
+                                <td><strong>{{ r.un }}</strong></td>
+                                <td>{{ r.last_name }} {{ r.first_name }} {{ r.middle_name or '' }}</td>
+                                <td>{{ r.phone }}</td>
+                                <td><audio controls src="/operator/audio/{{ r.id }}" style="height: 30px; width: 140px;"></audio></td>
+                                <td><a href="/operator/download/{{ r.id }}" style="color: var(--primary); text-decoration: none; font-weight: 500;">Скачать JSON</a></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Записи не найдены</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Режим 2: Биометрический поиск по отрезку -->
+        <div id="tab-bio" class="tab-content">
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+                Загрузите аудиозапись, выделите отрезок (от 3 до 10 секунд) и система найдет похожие голоса в базе.
+            </div>
+
+            <div class="upload-block">
+                <input type="file" id="searchAudioFile" accept="audio/*">
+            </div>
+
+            <div id="searchWaveform" class="waveform"></div>
+
+            <div class="controls">
+                <button onclick="playSearchAudio()">▶ Play</button>
+                <button onclick="pauseSearchAudio()">⏸ Pause</button>
+            </div>
+
+            <div class="region-data">
+                <div>Начало: <span id="searchStartTime">0.00</span> сек</div>
+                <div>Конец: <span id="searchEndTime">0.00</span> сек</div>
+                <div>Длина: <span id="searchRegionDuration" style="font-weight: bold; color: var(--primary);">0.00</span> сек</div>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 15px; align-items: center;">
+                <div class="field" style="flex: 1;">
+                    <label>Порог сходства (%): <span id="thresholdVal">70</span>%</label>
+                    <input type="range" id="threshold" min="40" max="95" value="70" oninput="document.getElementById('thresholdVal').innerText = this.value">
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background: #0ea5e9;" onclick="performVoiceSearch()">Найти совпадения в базе</button>
+            <div id="searchStatus" class="status"></div>
+
+            <div class="search-results" style="margin-top: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Сходство</th>
+                            <th>ИИН (UN)</th>
+                            <th>ФИО</th>
+                            <th>Телефон</th>
+                            <th>Аудиооригинал</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bioSearchResultsBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Выполните поиск по отрезку</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+    function switchTab(tabId, event) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    let wavesurfer = null;
+    let activeRegion = null;
+    let currentZoom = 100;
+
+    document.getElementById("audioFile").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (wavesurfer) wavesurfer.destroy();
+        const regions = WaveSurfer.Regions.create();
+
+        wavesurfer = WaveSurfer.create({
+            container: "#waveform",
+            waveColor: "#a5b4fc",
+            progressColor: "#6366f1",
+            cursorColor: "#1e1b4b",
+            barWidth: 2,
+            barGap: 1,
+            height: 140,
+            plugins: [regions]
+        });
+
+        await wavesurfer.loadBlob(file);
+        regions.enableDragSelection({ color: "rgba(99, 102, 241, 0.3)" });
+
+        regions.on("region-created", (region) => {
+            if (activeRegion && activeRegion.id !== region.id) activeRegion.remove();
+            activeRegion = region;
+            updateRegionUI(region);
+        });
+        regions.on("region-updated", (region) => { activeRegion = region; updateRegionUI(region); });
+    });
+
+    function updateRegionUI(region) {
+        const duration = region.end - region.start;
+        document.getElementById("startTime").innerText = region.start.toFixed(2);
+        document.getElementById("endTime").innerText = region.end.toFixed(2);
+        const durSpan = document.getElementById("regionDuration");
+        durSpan.innerText = duration.toFixed(2);
+        durSpan.style.color = (duration < 3 || duration > 10) ? "var(--danger)" : "var(--success)";
+    }
+
+    function fixDuration() {
+        if (!activeRegion) {
+            alert("Сначала выделите область на аудиодорожке!");
+            return;
+        }
+        let duration = activeRegion.end - activeRegion.start;
+        let total = wavesurfer.getDuration();
+        if (duration < 3) {
+            let newEnd = Math.min(total, activeRegion.start + 3.0);
+            let newStart = newEnd === total ? Math.max(0, total - 3.0) : activeRegion.start;
+            activeRegion.update({ start: newStart, end: newEnd });
+        } else if (duration > 10) {
+            activeRegion.update({ end: activeRegion.start + 10.0 });
+        }
+        updateRegionUI(activeRegion);
+    }
+
+    function playAudio() { if (activeRegion) activeRegion.play(); else if (wavesurfer) wavesurfer.play(); }
+    function pauseAudio() { if (wavesurfer) wavesurfer.pause(); }
+    function zoomIn() { if (wavesurfer) { currentZoom += 20; wavesurfer.zoom(currentZoom); } }
+    function zoomOut() { if (wavesurfer) { currentZoom = Math.max(20, currentZoom - 20); wavesurfer.zoom(currentZoom); } }
+
+    async function uploadNewVoiceprint() {
+        const file = document.getElementById("audioFile").files[0];
+        const un = document.getElementById("un").value.trim();
+        const firstName = document.getElementById("firstName").value.trim();
+        const lastName = document.getElementById("lastName").value.trim();
+        const middleName = document.getElementById("middleName").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+        const status = document.getElementById("status");
+
+        if (!file || !activeRegion) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Выберите файл и выделите фрагмент от 3 до 10 секунд.</span>";
+            return;
+        }
+        const duration = activeRegion.end - activeRegion.start;
+        if (duration < 3 || duration > 10) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Длина фрагмента должна быть от 3 до 10 секунд!</span>";
+            return;
+        }
+        if (!un || !firstName || !lastName || !phone) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Заполните обязательные поля (*)</span>";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("audio", file);
+        formData.append("un", un);
+        formData.append("first_name", firstName);
+        formData.append("last_name", lastName);
+        formData.append("middle_name", middleName);
+        formData.append("phone", phone);
+        formData.append("start", activeRegion.start.toFixed(2));
+        formData.append("end", activeRegion.end.toFixed(2));
+
+        status.innerHTML = "<span style='color: var(--primary);'>⏳ Обработка нейросетью и сохранение...</span>";
+
+        try {
+            const resp = await fetch("/operator/upload", { method: "POST", body: formData });
+            const res = await resp.json();
+            if (resp.ok) {
+                status.innerHTML = "<span style='color: var(--success);'>✅ Слепок успешно сохранен в базу!</span>";
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                status.innerHTML = `<span style='color: var(--danger);'>❌ Ошибка: ${res.error || res.detail}</span>`;
+            }
+        } catch (e) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Ошибка сети соединения с сервером.</span>";
+        }
+    }
+
+    function filterBySearch() {
+        const searchVal = document.getElementById("searchInput").value.trim();
+        window.location.href = `/operator${searchVal ? '?search=' + encodeURIComponent(searchVal) : ''}`;
+    }
+
+    let searchWavesurfer = null;
+    let searchActiveRegion = null;
+
+    document.getElementById("searchAudioFile").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (searchWavesurfer) searchWavesurfer.destroy();
+        const regions = WaveSurfer.Regions.create();
+
+        searchWavesurfer = WaveSurfer.create({
+            container: "#searchWaveform",
+            waveColor: "#7dd3fc",
+            progressColor: "#0ea5e9",
+            cursorColor: "#0369a1",
+            barWidth: 2,
+            barGap: 1,
+            height: 120,
+            plugins: [regions]
+        });
+
+        await searchWavesurfer.loadBlob(file);
+        regions.enableDragSelection({ color: "rgba(14, 165, 233, 0.3)" });
+
+        regions.on("region-created", (region) => {
+            if (searchActiveRegion && searchActiveRegion.id !== region.id) searchActiveRegion.remove();
+            searchActiveRegion = region;
+            updateSearchRegionUI(region);
+        });
+        regions.on("region-updated", (region) => { searchActiveRegion = region; updateSearchRegionUI(region); });
+    });
+
+    function updateSearchRegionUI(region) {
+        const duration = region.end - region.start;
+        document.getElementById("searchStartTime").innerText = region.start.toFixed(2);
+        document.getElementById("searchEndTime").innerText = region.end.toFixed(2);
+        const durSpan = document.getElementById("searchRegionDuration");
+        durSpan.innerText = duration.toFixed(2);
+        durSpan.style.color = (duration < 3 || duration > 10) ? "var(--danger)" : "var(--success)";
+    }
+
+    function playSearchAudio() { if (searchActiveRegion) searchActiveRegion.play(); else if (searchWavesurfer) searchWavesurfer.play(); }
+    function pauseSearchAudio() { if (searchWavesurfer) searchWavesurfer.pause(); }
+
+    async function performVoiceSearch() {
+        const file = document.getElementById("searchAudioFile").files[0];
+        const status = document.getElementById("searchStatus");
+        const threshold = document.getElementById("threshold").value;
+        const tbody = document.getElementById("bioSearchResultsBody");
+
+        if (!file || !searchActiveRegion) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Загрузите файл и выделите фрагмент для поиска!</span>";
+            return;
+        }
+
+        const duration = searchActiveRegion.end - searchActiveRegion.start;
+        if (duration < 3 || duration > 10) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Длина фрагмента должна быть от 3 до 10 секунд!</span>";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("audio", file);
+        formData.append("start", searchActiveRegion.start.toFixed(2));
+        formData.append("end", searchActiveRegion.end.toFixed(2));
+        formData.append("threshold", threshold);
+
+        status.innerHTML = "<span style='color: var(--primary);'>⏳ Анализ эмбеддинга и сравнение с базой через pgvector...</span>";
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Идет поиск...</td></tr>`;
+
+        try {
+            const resp = await fetch("/operator/search-by-voiceprint", { method: "POST", body: formData });
+            const data = await resp.json();
+
+            if (resp.ok) {
+                status.innerHTML = `<span style='color: var(--success);'>✅ Найдено совпадений: ${data.found}</span>`;
+                tbody.innerHTML = "";
+
+                if (data.results.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Нет совпадений выше порога ${threshold}%</td></tr>`;
+                    return;
+                }
+
+                data.results.forEach(r => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${r.similarity}%</strong></td>
+                            <td>${r.un}</td>
+                            <td>${r.name}</td>
+                            <td>${r.phone}</td>
+                            <td><audio controls src="${r.audio_url}" style="height: 30px; width: 140px;"></audio></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                status.innerHTML = `<span style='color: var(--danger);'>❌ Ошибка: ${data.error || "Сбой при поиске"}</span>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 20px;">Ошибка поиска</td></tr>`;
+            }
+        } catch (e) {
+            status.innerHTML = "<span style='color: var(--danger);'>❌ Ошибка сети с сервером.</span>";
+        }
+    }
+</script>
+
+<!-- Таймер бездействия (10 минут) -->
+<script>
+    (function() {
+        const timeoutDuration = 10 * 60 * 1000;
+        let timeoutTimer;
+        function resetTimer() {
+            clearTimeout(timeoutTimer);
+            timeoutTimer = setTimeout(() => { window.location.href = '/logout'; }, timeoutDuration);
+        }
+        window.onload = resetTimer;
+        window.onmousemove = resetTimer;
+        window.onmousedown = resetTimer;
+        window.ontouchstart = resetTimer;
+        window.onclick = resetTimer;
+        window.onkeydown = resetTimer;
+        window.addEventListener('scroll', resetTimer, true);
+    })();
+</script>
+</body>
+</html>

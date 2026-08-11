@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: voice_postgres
+    restart: always
+
+    environment:
+      POSTGRES_USER: voice_user
+      POSTGRES_PASSWORD: voice_password
+      POSTGRES_DB: voice_db
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
