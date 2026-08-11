@@ -5,3 +5,29 @@ __pycache__/
 *.db
 templates/sonar3.mp4
 tmp_speechbrain_model/
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets / local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime-generated data
+results/
+app/storage/audio/
+logs/
+
+# Local model caches
+pretrained_models/
+tmp_speechbrain_model/
+
+# Python
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+Thumbs.db
