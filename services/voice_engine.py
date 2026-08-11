@@ -5,51 +5,24 @@ import subprocess
 import tempfile
 import time
 import traceback
-import types
 import wave
 
 from multiprocessing import Pool
 import numpy as np
 import torch
 import torch.nn.functional as F
+from services.speaker_model import DEVICE
 
 # --- СТРОГИЙ ОФФЛАЙН РЕЖИМ ---
 # Запрещаем библиотекам любые сетевые запросы (работаем только с локальным кэшем)
-os.environ["HF_HUB_OFFLINE"] = "1"
 
 # --- АВТООПРЕДЕЛЕНИЕ УСТРОЙСТВА ---
 # SpeechBrain поддерживает cuda и cpu. На Mac используется CPU, на боевом ПК с NVIDIA — CUDA.
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"🚀 Нейросеть SpeechBrain настроена на устройство: {DEVICE.upper()} (Offline mode)")
+print(f"🚀 Нейросеть SpeechBrain настроена на устройство: {DEVICE.upper()}")
 
 # --- ПАТЧ СОВМЕСТИМОСТИ ДЛЯ TORCH И SPEECHBRAIN ---
-try:
-  if not hasattr(torch, "amp"):
-    torch.amp = types.ModuleType("amp")
 
-  if not hasattr(torch.amp, "custom_fwd"):
-    from torch.cuda.amp import custom_fwd as _orig_custom_fwd
-
-    def custom_fwd(*args, **kwargs):
-      kwargs.pop("device_type", None)
-      return _orig_custom_fwd(*args, **kwargs)
-
-    torch.amp.custom_fwd = custom_fwd
-
-  if not hasattr(torch.amp, "custom_bwd"):
-    from torch.cuda.amp import custom_bwd as _orig_custom_bwd
-
-    def custom_bwd(*args, **kwargs):
-      kwargs.pop("device_type", None)
-      return _orig_custom_bwd(*args, **kwargs)
-
-    torch.amp.custom_bwd = custom_bwd
-except Exception as e:
-  print(f"Ошибка применения патча torch.amp: {e}")
-# ----------------------------------------------------------------
-
-from speechbrain.inference.speaker import EncoderClassifier
-from speechbrain.lobes.features import Fbank
+from services.speaker_model import get_speaker_model
 
 # Глобальные переменные моделей для воркеров многопроцессорности
 _worker_speaker_model = None
@@ -63,42 +36,6 @@ def get_current_session_dir():
   global _current_session_dir
   return _current_session_dir
 
-
-def patch_speechbrain_model(speaker_model):
-  """Универсальная функция исправления структуры модели SpeechBrain для новых версий PyTorch."""
-  try:
-    if hasattr(speaker_model, "hparams"):
-      for attr_name in dir(speaker_model.hparams):
-        if not attr_name.startswith("_"):
-          attr_val = getattr(speaker_model.hparams, attr_name, None)
-          if isinstance(attr_val, torch.nn.Module) and not hasattr(
-              speaker_model.mods, attr_name
-          ):
-            speaker_model.mods[attr_name] = attr_val
-
-    if not hasattr(speaker_model.mods, "compute_features"):
-      speaker_model.mods["compute_features"] = Fbank(
-          sample_rate=16000, n_mels=80
-      )
-
-    if not hasattr(speaker_model.mods, "mean_var_norm"):
-      try:
-        from speechbrain.processing.features import InputNormalization
-
-        speaker_model.mods["mean_var_norm"] = InputNormalization(
-            norm_type="mvn"
-        )
-      except Exception:
-
-        class DummyNorm(torch.nn.Module):
-
-          def forward(self, x, lengths=None):
-            return x
-
-        speaker_model.mods["mean_var_norm"] = DummyNorm()
-  except Exception as e:
-    print(f"Ошибка при патчинге модели SpeechBrain: {e}")
-  return speaker_model
 
 
 def init_worker(shared_counter=None, lock=None, pause_event=None):
@@ -114,16 +51,11 @@ def init_worker(shared_counter=None, lock=None, pause_event=None):
     print(
         f"[{os.getpid()}] Загрузка локальной модели SpeechBrain на {DEVICE.upper()}..."
     )
-    model = EncoderClassifier.from_hparams(
-        source="speechbrain/spkrec-ecapa-voxceleb",
-        savedir="tmp_speechbrain_model",
-        run_opts={"device": DEVICE},
-    )
-    _worker_speaker_model = patch_speechbrain_model(model)
+    model = get_speaker_model()
+    _worker_speaker_model = model
     print(f"[{os.getpid()}] Модель SpeechBrain успешно загружена.")
   except Exception as e:
     print(
-        f"[{os.getpid()}] КРИТИЧЕСКАЯ ОШИБКА загрузки SpeechBrain (проверьте наличие папки tmp_speechbrain_model): {e}"
     )
 
 
@@ -302,13 +234,8 @@ def run_background_voice_search(
           f" {folder_path}\nПорог: {threshold}%\n"
       )
 
-    print(f"Инициализация целевой модели SpeechBrain на {DEVICE.upper()} (Offline)...")
-    temp_model_raw = EncoderClassifier.from_hparams(
-        source="speechbrain/spkrec-ecapa-voxceleb",
-        savedir="tmp_speechbrain_model",
-        run_opts={"device": DEVICE},
-    )
-    temp_model = patch_speechbrain_model(temp_model_raw)
+    print(f"Инициализация целевой модели SpeechBrain на {DEVICE.upper()}...")
+    temp_model = get_speaker_model()
 
     target_waveform, target_wav_path = process_audio_file(file_path_or_data)
     with torch.no_grad():
@@ -363,7 +290,7 @@ def run_background_voice_search(
 
     report_path = os.path.join(_current_session_dir, "report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
-      f.write("=== Отчет о многопроцессорном голосовом поиске (Offline) ===\n")
+      f.write("=== Отчет о многопроцессорном голосовом поиске ===\n")
       f.write(f"Дата и время: {datetime.now()}\n")
       f.write(f"Сканируемая папка: {folder_path}\n")
       f.write(f"Порог сходства: {threshold}%\n")

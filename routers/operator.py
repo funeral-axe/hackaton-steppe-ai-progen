@@ -5,16 +5,6 @@ import tempfile
 import json
 import numpy as np
 import torch
-import torch.nn as nn
-
-if not hasattr(torch.amp, 'custom_fwd'):
-    def dummy_decorator(f=None, **kwargs):
-        if f is None:
-            return lambda x: x
-        return f
-
-    torch.amp.custom_fwd = dummy_decorator
-    torch.amp.custom_bwd = dummy_decorator
 
 from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse, FileResponse
@@ -22,16 +12,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, or_
 from pydub import AudioSegment
-import torchaudio.compliance.kaldi as kaldi
 
-from speechbrain.inference.speaker import EncoderClassifier
+from services.speaker_model import get_speaker_model
 from database import get_db, User, VoicePrint
 from auth_dependencies import get_current_user
 
-classifier = EncoderClassifier.from_hparams(
-    source="speechbrain/spkrec-ecapa-voxceleb",
-    savedir="pretrained_models/ecapa"
-)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -42,39 +27,49 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
 def create_voiceprint(audio_path: str):
-    wav = classifier.load_audio(audio_path)
-    wav = wav.unsqueeze(0)
+    classifier = get_speaker_model()
 
-    if torch.cuda.is_available():
-        wav = wav.cuda()
+    audio = AudioSegment.from_file(audio_path)
+    audio = (
+        audio
+        .set_channels(1)
+        .set_frame_rate(16000)
+        .set_sample_width(2)
+    )
 
-    try:
-        feats = kaldi.fbank(wav, num_mel_bins=80, sample_frequency=16000)
-        feats = feats.unsqueeze(0)
-    except Exception as fbank_err:
-        raise RuntimeError(f"Не удалось извлечь Fbank-признаки: {fbank_err}")
+    samples = np.array(
+        audio.get_array_of_samples(),
+        dtype=np.float32,
+    )
 
-    container = getattr(classifier, "mods", getattr(classifier, "modules", None))
-    if container is None:
-        raise AttributeError("Не удалось найти контейнер модулей модели.")
+    if samples.size == 0:
+        raise RuntimeError("Audio file contains no samples")
 
-    try:
-        with torch.no_grad():
-            base_model = getattr(container.embedding_model, "model", container.embedding_model)
-            norm_layer = container.mean_var_norm_emb
+    samples /= 32768.0
 
-            embeddings = base_model(feats)
-            embeddings = norm_layer(embeddings)
+    waveform = torch.from_numpy(samples).unsqueeze(0)
 
-            embedding = embeddings.squeeze().cpu().numpy().astype(np.float32)
-            return embedding.tolist()
+    with torch.no_grad():
+        embedding = classifier.encode_batch(
+            waveform,
+            normalize=True,
+        )
 
-    except Exception as e:
-        print("\n" + "❌" * 20)
-        print(f"Ошибка прямого прогона базовой модели: {e}")
-        print("❌" * 20 + "\n")
-        raise AttributeError(f"Ошибка вычисления вектора: {e}")
+    vector = (
+        embedding
+        .squeeze()
+        .detach()
+        .cpu()
+        .numpy()
+        .astype(np.float32)
+    )
 
+    if vector.shape != (192,):
+        raise RuntimeError(
+            f"Expected 192-dimensional voiceprint, got {vector.shape}"
+        )
+
+    return vector.tolist()
 
 # --- СТРАНИЦА ОПЕРАТОРА (ПОИСК ПО ИИН ИЛИ НОМЕРУ ТЕЛЕФОНА) ---
 
