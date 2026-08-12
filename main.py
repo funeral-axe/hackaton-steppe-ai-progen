@@ -300,6 +300,12 @@ async def index_folder(
     if not user:
         return RedirectResponse("/login", status_code=303)
 
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(
+            role_home(user),
+            status_code=303,
+        )
+
     folder_path = folder_path.strip()
     if not folder_path:
         return RedirectResponse("/?error=Укажите папку с аудиофайлами", status_code=303)
@@ -322,7 +328,16 @@ async def index_status(
     db: Session = Depends(get_db),
 ):
     if not user:
-        return {"authenticated": False}
+        return JSONResponse(
+            {"detail": "Unauthorized"},
+            status_code=401,
+        )
+
+    if not has_role(user, UserRole.USER.value):
+        return JSONResponse(
+            {"detail": "Forbidden"},
+            status_code=403,
+        )
     job = db.query(IndexJob).order_by(IndexJob.id.desc()).first()
     if not job:
         return {"status": "none"}
@@ -349,6 +364,12 @@ async def start_search(
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
+
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(
+            role_home(user),
+            status_code=303,
+        )
     try:
         parsed = parse_keywords(keywords)
     except ValueError as exc:
@@ -385,6 +406,12 @@ async def start_online_search(
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
+
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(
+            role_home(user),
+            status_code=303,
+        )
 
     try:
         parsed = parse_keywords(keywords)
@@ -437,6 +464,12 @@ async def online_search_progress_page(
     if not user:
         return RedirectResponse("/login", status_code=303)
 
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(
+            role_home(user),
+            status_code=303,
+        )
+
     job = get_online_job(job_id)
     if not job:
         return HTMLResponse("Задача онлайн-поиска не найдена", status_code=404)
@@ -454,7 +487,16 @@ async def online_search_status(
     user: Optional[User] = Depends(get_current_user),
 ):
     if not user:
-        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+        return JSONResponse(
+            {"error": "Unauthorized"},
+            status_code=401,
+        )
+
+    if not has_role(user, UserRole.USER.value):
+        return JSONResponse(
+            {"error": "Forbidden"},
+            status_code=403,
+        )
 
     job = get_online_job(job_id)
     if not job:
@@ -481,6 +523,12 @@ async def online_search_results_page(
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
+
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(
+            role_home(user),
+            status_code=303,
+        )
 
     job = get_online_job(job_id)
     if not job:

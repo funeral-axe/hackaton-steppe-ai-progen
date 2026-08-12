@@ -15,10 +15,12 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydub import AudioSegment
 from auth_dependencies import get_current_user
+from auth_permissions import has_role, role_home
+from database import UserRole
 from services.progress_manager import progress_manager
 from services.voice_engine import run_background_voice_search
 
@@ -94,6 +96,12 @@ async def browse_results(full_path: str = "", user=Depends(get_current_user)):
   if not user:
     return RedirectResponse(url="/login", status_code=303)
 
+  if not has_role(user, UserRole.USER.value):
+    return RedirectResponse(
+        url=role_home(user),
+        status_code=303,
+    )
+
   base_dir = os.path.abspath("results")
   target_path = os.path.normpath(os.path.join(base_dir, full_path))
 
@@ -139,6 +147,12 @@ async def init_search(
 ):
   if not user:
     return RedirectResponse(url="/login", status_code=303)
+
+  if not has_role(user, UserRole.USER.value):
+    return RedirectResponse(
+        url=role_home(user),
+        status_code=303,
+    )
   query_params = urlencode({"date": search_date, "number": search_number})
   return RedirectResponse(
       url=(
@@ -159,6 +173,12 @@ async def voice_search_page(
 ):
   if not user:
     return RedirectResponse(url="/login", status_code=303)
+
+  if not has_role(user, UserRole.USER.value):
+    return RedirectResponse(
+        url=role_home(user),
+        status_code=303,
+    )
   return templates.TemplateResponse(
       request=request,
       name="voice_search.html",
@@ -171,7 +191,16 @@ async def api_check_folder(
     folder_path: str = Form(...), user=Depends(get_current_user)
 ):
   if not user:
-    return {"error": "Не авторизован"}
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(user, UserRole.USER.value):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
   if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
     return {"error": "Папка не существует"}
   audio_extensions = (".mp3", ".wav", ".opus", ".m4a", ".flac", ".aac")
@@ -187,14 +216,32 @@ async def api_check_folder(
 @router.get("/api/search_progress")
 async def api_search_progress(user=Depends(get_current_user)):
   if not user:
-    return {"error": "Не авторизован"}
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(user, UserRole.USER.value):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
   return progress_manager.get()
 
 
 @router.post("/api/search_pause")
 async def api_search_pause(user=Depends(get_current_user)):
   if not user:
-    return {"error": "Не авторизован"}
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(user, UserRole.USER.value):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
   progress_manager.pause()
   return {"message": "Поиск приостановлен"}
 
@@ -202,7 +249,16 @@ async def api_search_pause(user=Depends(get_current_user)):
 @router.post("/api/search_resume")
 async def api_search_resume(user=Depends(get_current_user)):
   if not user:
-    return {"error": "Не авторизован"}
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(user, UserRole.USER.value):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
   progress_manager.resume()
   return {"message": "Поиск возобновлен"}
 
@@ -218,7 +274,16 @@ async def api_search_voice(
     user=Depends(get_current_user),
 ):
   if not user:
-    return {"error": "Не авторизован"}
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(user, UserRole.USER.value):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
   if not (2.9 <= (end - start) <= 5.1):
     return {"error": "Длина фрагмента должна быть от 3 до 5 секунд"}
 

@@ -14,8 +14,9 @@ from sqlalchemy import text, or_
 from pydub import AudioSegment
 
 from services.speaker_model import get_speaker_model
-from database import get_db, User, VoicePrint
+from database import get_db, User, UserRole, VoicePrint
 from auth_dependencies import get_current_user
+from auth_permissions import has_role
 
 
 router = APIRouter()
@@ -117,7 +118,23 @@ def operator_page(
 # --- СКАЧИВАНИЕ ДАННЫХ И АУДИО ---
 
 @router.get("/operator/download/{record_id}")
-def download_voiceprint(record_id: int, db: Session = Depends(get_db)):
+def download_voiceprint(
+    record_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized"},
+        )
+
+    if not has_role(user, UserRole.OPERATOR.value):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Forbidden"},
+        )
+
     record = db.get(VoicePrint, record_id)
     if not record:
         return {"error": "Not found"}
@@ -130,7 +147,23 @@ def download_voiceprint(record_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/operator/audio/{record_id}")
-def download_audio(record_id: int, db: Session = Depends(get_db)):
+def download_audio(
+    record_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized"},
+        )
+
+    if not has_role(user, UserRole.OPERATOR.value):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Forbidden"},
+        )
+
     record = db.get(VoicePrint, record_id)
     if not record or not os.path.exists(record.audio_path):
         return {"error": "Audio not found"}
