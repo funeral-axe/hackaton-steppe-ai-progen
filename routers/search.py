@@ -246,7 +246,7 @@ async def api_search_voice(
     )
 
     background_tasks.add_task(
-        background_search_runner, temp_target_path, folder_path, threshold, 4
+        background_search_runner, temp_target_path, folder_path, threshold, 1
     )
     return {"message": "Поиск успешно запущен."}
   except Exception as e:

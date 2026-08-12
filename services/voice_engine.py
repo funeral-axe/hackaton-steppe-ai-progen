@@ -134,7 +134,7 @@ def process_candidate_worker(args):
 
     _, candidate_wav_path = process_audio_file(candidate_path)
     max_file_similarity = 0.0
-    target_embedding = torch.tensor(target_embedding_np)
+    target_embedding = torch.as_tensor(target_embedding_np, dtype=torch.float32, device=DEVICE)
 
     with wave.open(candidate_wav_path, "rb") as wf:
       sr = wf.getframerate()
@@ -278,6 +278,7 @@ def run_background_voice_search(
       ):
         file_name = os.path.basename(candidate_path)
         if err:
+          print(f"[VOICE SEARCH ERROR] {candidate_path}: {err}")
           continue
         if matched:
           dest_path = os.path.join(_current_session_dir, file_name)
