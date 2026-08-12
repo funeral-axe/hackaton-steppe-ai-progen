@@ -34,6 +34,9 @@ from database import (
 )
 
 
+from routers import operator as operator_router
+from routers import search as voice_search_router
+
 def get_db():
     db = SessionLocal()
     try:
@@ -161,6 +164,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Audio Search Admin", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.include_router(operator_router.router)
+app.include_router(voice_search_router.router)
 
 
 @app.get("/login")

@@ -144,7 +144,7 @@ async def init_search(
       url=(
           f"/voice_search?{query_params}"
           if search_type == "voice"
-          else f"/words_search?{query_params}"
+          else "/"
       ),
       status_code=303,
   )
@@ -162,22 +162,6 @@ async def voice_search_page(
   return templates.TemplateResponse(
       request=request,
       name="voice_search.html",
-      context={"user": user, "date": date, "number": number},
-  )
-
-
-@router.get("/words_search")
-async def words_search_page(
-    request: Request,
-    date: str = Query(default=None),
-    number: str = Query(default=None),
-    user=Depends(get_current_user),
-):
-  if not user:
-    return RedirectResponse(url="/login", status_code=303)
-  return templates.TemplateResponse(
-      request=request,
-      name="words_search.html",
       context={"user": user, "date": date, "number": number},
   )
 
