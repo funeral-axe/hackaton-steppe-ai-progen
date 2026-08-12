@@ -23,6 +23,7 @@ from auth_permissions import has_role, role_home
 from database import UserRole
 from services.progress_manager import progress_manager
 from services.voice_engine import run_background_voice_search
+from services.voice_jobs import voice_job_manager
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -304,6 +305,43 @@ async def api_search_progress(user=Depends(get_current_user)):
   return progress_manager.get()
 
 
+@router.get("/api/search_progress/{job_id}")
+async def api_search_progress_by_job(
+    job_id: str,
+    user=Depends(get_current_user),
+):
+  if not user:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  job = voice_job_manager.get(job_id)
+
+  if job is None:
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Voice search job not found"},
+    )
+
+  if job.owner_user_id != user.id:
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  return job.snapshot()
+
+
 @router.post("/api/search_pause")
 async def api_search_pause(user=Depends(get_current_user)):
   if not user:
@@ -419,10 +457,17 @@ async def api_search_voice(
         temp_target_path, format="wav"
     )
 
+    job = voice_job_manager.create(
+        owner_user_id=user.id
+    )
+
     background_tasks.add_task(
         background_search_runner, temp_target_path, folder_path, threshold, 1
     )
-    return {"message": "Поиск успешно запущен."}
+    return {
+        "message": "\u041f\u043e\u0438\u0441\u043a \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0437\u0430\u043f\u0443\u0449\u0435\u043d.",
+        "job_id": job.job_id,
+    }
   except Exception as e:
     if temp_target_path and os.path.exists(temp_target_path):
       os.remove(temp_target_path)
