@@ -1,0 +1,198 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>SonAr — Выбор поиска</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background:
+                radial-gradient(
+                    circle at top,
+                    #1f3258,
+                    #080d18 65%
+                );
+            color: #ffffff;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 40px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .account {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logout {
+            color: #ffffff;
+            text-decoration: none;
+            opacity: 0.8;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 950px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 38px;
+        }
+
+        .subtitle {
+            margin-bottom: 50px;
+            color: #aebad0;
+            font-size: 18px;
+        }
+
+        .modes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 28px;
+        }
+
+        .mode {
+            display: block;
+            padding: 55px 35px;
+            min-height: 250px;
+
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 22px;
+
+            background: rgba(255,255,255,0.07);
+
+            color: #ffffff;
+            text-decoration: none;
+
+            transition:
+                transform 0.2s ease,
+                background 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .mode:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .icon {
+            margin-bottom: 20px;
+            font-size: 54px;
+        }
+
+        .mode-title {
+            margin-bottom: 12px;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .mode-description {
+            color: #b9c4d8;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 720px) {
+            .header {
+                padding: 20px;
+            }
+
+            .modes {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="page">
+
+    <header class="header">
+        <div class="logo">SonAr</div>
+
+        <div class="account">
+            <span>{{ user.login }}</span>
+            <a class="logout" href="/logout">
+                Выйти
+            </a>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+
+            <h1>Выберите режим поиска</h1>
+
+            <div class="subtitle">
+                Поиск информации в системе SonAr
+            </div>
+
+            <div class="modes">
+
+                <a class="mode" href="/">
+                    <div class="icon">⌨</div>
+                    <div class="mode-title">
+                        Поиск по тексту
+                    </div>
+                    <div class="mode-description">
+                        Поиск и анализ данных
+                        средствами текстового модуля SonAr.
+                    </div>
+                </a>
+
+                <a class="mode" href="/voice_search">
+                    <div class="icon">🎙</div>
+                    <div class="mode-title">
+                        Поиск по голосу
+                    </div>
+                    <div class="mode-description">
+                        Поиск по голосовому образцу
+                        с использованием ECAPA.
+                    </div>
+                </a>
+
+            </div>
+
+        </div>
+    </main>
+
+</div>
+</body>
+</html>

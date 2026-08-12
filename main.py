@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from audio_processor import parse_keywords, run_index_job, search_audio
+from auth_permissions import has_role, role_home
 from services.word_search import (
     create_online_job,
     get_online_job,
@@ -212,7 +213,7 @@ async def login_post(
 
     write_login_log(db, request, login, "success", "Успешный вход", user)
 
-    target = "/admin" if user.role == UserRole.ADMIN.value else "/"
+    target = role_home(user)
     response = RedirectResponse(target, status_code=303)
     response.set_cookie(
         key="session_token",
@@ -243,6 +244,23 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 
 
 
+@app.get("/user")
+async def user_home(
+    request: Request,
+    user: Optional[User] = Depends(get_current_user),
+):
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(role_home(user), status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="user.html",
+        context={"user": user},
+    )
+
 @app.get("/")
 async def index_page(
     request: Request,
@@ -251,6 +269,9 @@ async def index_page(
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
+
+    if not has_role(user, UserRole.USER.value):
+        return RedirectResponse(role_home(user), status_code=303)
 
     latest_job = db.query(IndexJob).order_by(IndexJob.id.desc()).first()
     indexed_count = db.query(AudioFile).filter(AudioFile.status == "completed").count()
