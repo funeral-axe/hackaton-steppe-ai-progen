@@ -492,53 +492,172 @@
                 const statusResp = await fetch('/api/search_progress');
                 const status = await statusResp.json();
 
+                if (!statusResp.ok) {
+                    console.error(
+                        "Search progress request failed:",
+                        status
+                    );
+                    return;
+                }
+
                 if (status.total > 0) {
-                    const rawPercent = Math.round((status.processed / status.total) * 100);
-                    const percent = Math.min(100, Math.max(0, rawPercent));
+                    const rawPercent = Math.round(
+                        (status.processed / status.total) * 100
+                    );
+
+                    const percent = Math.min(
+                        100,
+                        Math.max(0, rawPercent)
+                    );
 
                     progressBarFill.style.width = percent + '%';
                     progressPercent.innerText = percent + '%';
-                    processedInfo.innerText = `Обработано записей: ${status.processed} из ${status.total}`;
 
-                    if (status.status === 'paused') {
-                        progressStatusText.innerText = '⏸ Поиск приостановлен.';
-                        pauseTimer();
-                    } else if (status.status === 'running') {
-                        progressStatusText.innerText = 'Сканирование папки...';
-                        startTimer();
-                    }
+                    processedInfo.innerText =
+                        `\u041e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439: ${status.processed} \u0438\u0437 ${status.total}`;
                 }
 
-                if (status.results_url && (status.status === 'paused' || status.status === 'completed')) {
-                    const isPaused = status.status === 'paused';
+                if (status.status === 'running') {
+                    progressStatusText.innerText =
+                        '\u0421\u043a\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u0430\u043f\u043a\u0438...';
+
+                    startTimer();
+                }
+
+                if (status.status === 'paused') {
+                    progressStatusText.innerText =
+                        '\u23F8 \u041f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
+
+                    pauseTimer();
+                }
+
+                if (status.status === 'cancel_requested') {
+                    progressStatusText.innerText =
+                        '\u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...';
+
+                    pauseTimer();
+
+                    pauseTaskBtn.disabled = true;
+                    resumeTaskBtn.disabled = true;
+                    cancelTaskBtn.disabled = true;
+                }
+
+                const isCompleted =
+                    status.status === 'completed';
+
+                const isCancelled =
+                    status.status === 'cancelled';
+
+                const isPaused =
+                    status.status === 'paused';
+
+                if (
+                    status.results_url &&
+                    (
+                        isPaused ||
+                        isCompleted ||
+                        isCancelled
+                    )
+                ) {
+                    let title = '';
+                    let boxStyle = '';
                     let timeMessage = '';
 
-                    if (status.status === 'completed') {
-                        pauseTimer();
-                        const totalFormatted = formatFinalTime(secondsElapsed);
-                        timeMessage = `<br>Затраченное время: <b>${totalFormatted}</b>`;
+                    if (isCompleted) {
+                        title =
+                            '\u041f\u043e\u0438\u0441\u043a \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d!';
 
-                        // Делаем кнопки паузы и отмены неактивными при успешном завершении
-                        pauseTaskBtn.disabled = true;
-                        cancelTaskBtn.disabled = true;
+                        pauseTimer();
+
+                        const totalFormatted =
+                            formatFinalTime(secondsElapsed);
+
+                        timeMessage =
+                            `<br>\u0417\u0430\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f: <b>${totalFormatted}</b>`;
+                    }
+
+                    if (isCancelled) {
+                        title =
+                            '\u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c';
+
+                        pauseTimer();
+
+                        const totalFormatted =
+                            formatFinalTime(secondsElapsed);
+
+                        timeMessage =
+                            `<br>\u0417\u0430\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f: <b>${totalFormatted}</b>`;
+
+                        boxStyle =
+                            'background: #fff7ed; border-color: #f97316; color: #9a3412;';
+                    }
+
+                    if (isPaused) {
+                        title =
+                            '\u041f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c';
+
+                        boxStyle =
+                            'background: #fffbeb; border-color: #f59e0b; color: #b45309;';
                     }
 
                     resultsContainer.innerHTML = `
-                        <div class="status-box-success" style="${isPaused ? 'background: #fffbeb; border-color: #f59e0b; color: #b45309;' : ''}">
-                            <strong style="font-size: 16px;">${status.status === 'completed' ? 'Поиск успешно завершен!' : 'Поиск приостановлен пользователем'}</strong><br><br>
-                            Обработано записей: <b>${status.processed} из ${status.total}</b>${timeMessage}<br><br>
-                            <a href="${status.results_url}" target="_blank" class="btn">📂 Открыть папку с результатами</a>
-                        </div>`;
+                        <div
+                            class="status-box-success"
+                            style="${boxStyle}"
+                        >
+                            <strong style="font-size: 16px;">
+                                ${title}
+                            </strong>
+
+                            <br><br>
+
+                            \u041e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439:
+                            <b>${status.processed} \u0438\u0437 ${status.total}</b>
+
+                            ${timeMessage}
+
+                            <br><br>
+
+                            <a
+                                href="${status.results_url}"
+                                target="_blank"
+                                class="btn"
+                            >
+                                &#128194; \u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043f\u0430\u043f\u043a\u0443 \u0441 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430\u043c\u0438
+                            </a>
+                        </div>
+                    `;
                 }
 
-                if (status.status === 'completed') {
+                if (isCompleted || isCancelled) {
                     clearInterval(pollInterval);
+                    pollInterval = null;
+
+                    pauseTimer();
+
                     submitBtn.disabled = false;
-                    pauseTaskBtn.style.display = 'inline-block';
-                    resumeTaskBtn.style.display = 'none';
+
+                    pauseTaskBtn.disabled = true;
+                    resumeTaskBtn.disabled = true;
+                    cancelTaskBtn.disabled = true;
+
+                    pauseTaskBtn.style.display =
+                        'inline-block';
+
+                    resumeTaskBtn.style.display =
+                        'none';
+
+                    progressStatusText.innerText =
+                        isCompleted
+                            ? '\u2705 \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.'
+                            : '\u23F9 \u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
                 }
+
             } catch (err) {
-                console.error("Ошибка опроса прогресса:", err);
+                console.error(
+                    "Search progress polling error:",
+                    err
+                );
             }
         }, 1000);
     });
@@ -559,19 +678,93 @@
     });
 
     cancelTaskBtn.addEventListener('click', async () => {
-        if (!confirm('Вы уверены, что хотите остановить поиск? Найденое ранее сохранится в папке.')) return;
+        const confirmed = confirm(
+            '\u0412\u044b \u0443\u0432\u0435\u0440\u0435\u043d\u044b, \u0447\u0442\u043e \u0445\u043e\u0442\u0438\u0442\u0435 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a? ' +
+            '\u0423\u0436\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u044b\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.'
+        );
 
-        await fetch('/api/search_cancel', { method: 'POST' });
+        if (!confirmed) {
+            return;
+        }
 
-        clearInterval(pollInterval);
-        resetTimer();
-        progressContainer.style.display = 'none';
-        submitBtn.disabled = false;
-        pauseTaskBtn.style.display = 'inline-block';
-        resumeTaskBtn.style.display = 'none';
+        try {
+            cancelTaskBtn.disabled = true;
+            pauseTaskBtn.disabled = true;
+            resumeTaskBtn.disabled = true;
 
-        alert('Поиск остановлен. Все совпадения сохранены на диске.');
+            progressStatusText.innerText =
+                '\u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...';
+
+            pauseTimer();
+
+            const response = await fetch(
+                '/api/search_cancel',
+                {
+                    method: 'POST'
+                }
+            );
+
+            let data = {};
+
+            try {
+                data = await response.json();
+            } catch (_) {
+                data = {};
+            }
+
+            if (response.status === 409) {
+                progressStatusText.innerText =
+                    '\u041f\u043e\u0438\u0441\u043a \u0443\u0436\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.';
+
+                return;
+            }
+
+            if (!response.ok) {
+                cancelTaskBtn.disabled = false;
+
+                alert(
+                    data.detail ||
+                    data.error ||
+                    '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a.'
+                );
+
+                return;
+            }
+
+            resultsContainer.innerHTML = `
+                <div
+                    class="status-box-success"
+                    style="
+                        background: #fff7ed;
+                        border-color: #f97316;
+                        color: #9a3412;
+                    "
+                >
+                    <strong>
+                        \u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...
+                    </strong>
+
+                    <br><br>
+
+                    \u041e\u0436\u0438\u0434\u0430\u0435\u043c \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438.
+                    \u0423\u0436\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u044b\u0435 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b \u0431\u0443\u0434\u0443\u0442 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.
+                </div>
+            `;
+
+        } catch (err) {
+            console.error(
+                "Search cancellation error:",
+                err
+            );
+
+            cancelTaskBtn.disabled = false;
+
+            alert(
+                '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f \u043f\u0440\u0438 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0435 \u043f\u043e\u0438\u0441\u043a\u0430.'
+            );
+        }
     });
+
 </script>
 </body>
 </html>

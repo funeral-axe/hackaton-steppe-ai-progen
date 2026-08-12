@@ -29,64 +29,139 @@ templates = Jinja2Templates(directory="templates")
 
 
 def background_search_runner(
-    target_wav_path, folder_path, threshold, workers_count
+    target_wav_path,
+    folder_path,
+    threshold,
+    workers_count,
 ):
-  audio_extensions = (".mp3", ".wav", ".opus", ".m4a", ".flac", ".aac")
+  audio_extensions = (
+      ".mp3",
+      ".wav",
+      ".opus",
+      ".m4a",
+      ".flac",
+      ".aac",
+  )
+
   all_files = []
-  if os.path.exists(folder_path) and os.path.isdir(folder_path):
-    for root, dirs, files in os.walk(folder_path):
+
+  if (
+      os.path.exists(folder_path)
+      and os.path.isdir(folder_path)
+  ):
+    for root, _, files in os.walk(folder_path):
       for file in files:
-        if file.lower().endswith(audio_extensions):
-          all_files.append(os.path.join(root, file))
+        if file.lower().endswith(
+            audio_extensions
+        ):
+          all_files.append(
+              os.path.join(root, file)
+          )
 
   total_files = len(all_files)
+
   progress_manager.start(total_files)
 
-  shared_counter = multiprocessing.Value("i", 0)
+  shared_counter = multiprocessing.Value(
+      "i",
+      0,
+  )
+
   lock = multiprocessing.Lock()
   pause_event = multiprocessing.Event()
+  cancel_event = multiprocessing.Event()
   search_done = threading.Event()
+
+  search_result = {
+      "cancelled": False,
+      "error": None,
+  }
 
   def run_search():
     try:
-      run_background_voice_search(
-          file_path_or_data=target_wav_path,
-          folder_path=folder_path,
-          threshold=threshold,
-          num_processes=workers_count,
-          shared_counter=shared_counter,
-          lock=lock,
-          pause_event=pause_event,
+      search_result["cancelled"] = (
+          run_background_voice_search(
+              file_path_or_data=target_wav_path,
+              folder_path=folder_path,
+              threshold=threshold,
+              num_processes=workers_count,
+              shared_counter=shared_counter,
+              lock=lock,
+              pause_event=pause_event,
+              cancel_event=cancel_event,
+          )
       )
+
     except Exception as e:
-      print(f"Ошибка в фоновой задаче поиска: {e}")
+      search_result["error"] = str(e)
+
+      print(
+          f"Voice background search error: {e}"
+      )
+
     finally:
       search_done.set()
 
-  search_thread = threading.Thread(target=run_search)
+  search_thread = threading.Thread(
+      target=run_search
+  )
+
   search_thread.start()
 
   while not search_done.is_set():
+
     current_state = progress_manager.get()
-    if current_state["status"] == "paused":
+    status = current_state["status"]
+
+    if status == "cancel_requested":
+      pause_event.clear()
+      cancel_event.set()
+
+    elif status == "paused":
       pause_event.set()
-    elif current_state["status"] == "running":
+
+    elif status == "running":
       pause_event.clear()
 
     with lock:
-      current_processed = shared_counter.value
-    progress_manager.update(current_processed)
+      current_processed = (
+          shared_counter.value
+      )
+
+    progress_manager.update(
+        current_processed
+    )
+
     time.sleep(0.3)
 
   with lock:
     current_processed = shared_counter.value
-  progress_manager.update(current_processed)
-  progress_manager.finish()
 
-  if target_wav_path and os.path.exists(target_wav_path):
+  progress_manager.update(
+      current_processed
+  )
+
+  final_state = progress_manager.get()
+
+  if (
+      search_result["cancelled"]
+      or final_state["status"]
+      == "cancel_requested"
+  ):
+    progress_manager.mark_cancelled(
+        current_processed
+    )
+
+  else:
+    progress_manager.finish()
+
+  if (
+      target_wav_path
+      and os.path.exists(target_wav_path)
+  ):
     try:
       os.remove(target_wav_path)
-    except Exception:
+    except OSError:
       pass
 
 
@@ -261,6 +336,40 @@ async def api_search_resume(user=Depends(get_current_user)):
     )
   progress_manager.resume()
   return {"message": "Поиск возобновлен"}
+
+
+@router.post("/api/search_cancel")
+async def api_search_cancel(
+    user=Depends(get_current_user),
+):
+  if not user:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  accepted = progress_manager.request_cancel()
+
+  if not accepted:
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": "No active search to cancel"
+        },
+    )
+
+  return {
+      "message": "Cancellation requested"
+  }
 
 
 @router.post("/api/search_voice")

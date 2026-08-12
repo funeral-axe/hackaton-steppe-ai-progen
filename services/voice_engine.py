@@ -38,24 +38,40 @@ def get_current_session_dir():
 
 
 
-def init_worker(shared_counter=None, lock=None, pause_event=None):
-  """Инициализирует локальную модель SpeechBrain внутри каждого отдельного процесса-воркера."""
-  global _worker_speaker_model, _worker_shared_counter, _worker_lock, _worker_pause_event
+def init_worker(
+    shared_counter=None,
+    lock=None,
+    pause_event=None,
+    cancel_event=None,
+):
+  """Initialize SpeechBrain model and shared worker controls."""
+  global _worker_speaker_model
+  global _worker_shared_counter
+  global _worker_lock
+  global _worker_pause_event
+  global _worker_cancel_event
+
   _worker_shared_counter = shared_counter
   _worker_lock = lock
   _worker_pause_event = pause_event
+  _worker_cancel_event = cancel_event
 
   torch.set_num_threads(1)
 
   try:
     print(
-        f"[{os.getpid()}] Загрузка локальной модели SpeechBrain на {DEVICE.upper()}..."
+        f"[{os.getpid()}] Loading SpeechBrain model on "
+        f"{DEVICE.upper()}..."
     )
-    model = get_speaker_model()
-    _worker_speaker_model = model
-    print(f"[{os.getpid()}] Модель SpeechBrain успешно загружена.")
-  except Exception as e:
+    _worker_speaker_model = get_speaker_model()
     print(
+        f"[{os.getpid()}] SpeechBrain model loaded successfully."
+    )
+  except Exception as e:
+    _worker_speaker_model = None
+    print(
+        f"[{os.getpid()}] SpeechBrain model initialization failed: "
+        f"{e}"
     )
 
 
@@ -120,59 +136,190 @@ def process_audio_file(file_input):
 
 
 def process_candidate_worker(args):
-  """Обработка файла-кандидата с локальным скользящим окном для поиска голоса среди нескольких спикеров."""
+  """Process one candidate with pause and cancellation support."""
   candidate_path, target_embedding_np, threshold = args
-  global _worker_speaker_model, _worker_shared_counter, _worker_lock, _worker_pause_event
 
-  if _worker_pause_event is not None:
-    while _worker_pause_event.is_set():
-      time.sleep(0.5)
+  global _worker_speaker_model
+  global _worker_shared_counter
+  global _worker_lock
+  global _worker_pause_event
+  global _worker_cancel_event
+
+  candidate_wav_path = None
+  was_cancelled = False
 
   try:
-    if _worker_speaker_model is None:
-      raise RuntimeError("Модель SpeechBrain не инициализирована в воркере!")
+    if (
+        _worker_cancel_event is not None
+        and _worker_cancel_event.is_set()
+    ):
+      was_cancelled = True
+      return (
+          candidate_path,
+          0.0,
+          False,
+          "__CANCELLED__",
+      )
 
-    _, candidate_wav_path = process_audio_file(candidate_path)
+    if _worker_pause_event is not None:
+      while _worker_pause_event.is_set():
+        if (
+            _worker_cancel_event is not None
+            and _worker_cancel_event.is_set()
+        ):
+          was_cancelled = True
+          return (
+              candidate_path,
+              0.0,
+              False,
+              "__CANCELLED__",
+          )
+
+        time.sleep(0.2)
+
+    if _worker_speaker_model is None:
+      raise RuntimeError(
+          "SpeechBrain model is not initialized in worker"
+      )
+
+    _, candidate_wav_path = process_audio_file(
+        candidate_path
+    )
+
+    if (
+        _worker_cancel_event is not None
+        and _worker_cancel_event.is_set()
+    ):
+      was_cancelled = True
+      return (
+          candidate_path,
+          0.0,
+          False,
+          "__CANCELLED__",
+      )
+
     max_file_similarity = 0.0
-    target_embedding = torch.as_tensor(target_embedding_np, dtype=torch.float32, device=DEVICE)
+
+    target_embedding = torch.as_tensor(
+        target_embedding_np,
+        dtype=torch.float32,
+        device=DEVICE,
+    )
 
     with wave.open(candidate_wav_path, "rb") as wf:
       sr = wf.getframerate()
       frames = wf.readframes(wf.getnframes())
+
       audio_np = (
-          np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+          np.frombuffer(
+              frames,
+              dtype=np.int16,
+          ).astype(np.float32)
+          / 32768.0
       )
 
     total_samples = len(audio_np)
+
     chunk_duration = 3.0
     step_duration = 1.5
+
     chunk_samples = int(chunk_duration * sr)
     step_samples = int(step_duration * sr)
 
     if total_samples <= chunk_samples * 1.5:
-      candidate_waveform, _ = process_audio_file(candidate_path)
-      with torch.no_grad():
-        candidate_embedding = _worker_speaker_model.encode_batch(candidate_waveform)
+
+      if (
+          _worker_cancel_event is not None
+          and _worker_cancel_event.is_set()
+      ):
+        was_cancelled = True
+        return (
+            candidate_path,
+            0.0,
+            False,
+            "__CANCELLED__",
+        )
+
+      candidate_waveform, extra_wav_path = (
+          process_audio_file(candidate_path)
+      )
+
+      try:
+        with torch.no_grad():
+          candidate_embedding = (
+              _worker_speaker_model.encode_batch(
+                  candidate_waveform
+              )
+          )
+      finally:
+        if (
+            extra_wav_path
+            and os.path.exists(extra_wav_path)
+        ):
+          os.remove(extra_wav_path)
+
       cos_sim = F.cosine_similarity(
-          target_embedding, candidate_embedding, dim=-1
+          target_embedding,
+          candidate_embedding,
+          dim=-1,
       ).item()
-      max_file_similarity = round(max(0.0, cos_sim) * 100, 2)
+
+      max_file_similarity = round(
+          max(0.0, cos_sim) * 100,
+          2,
+      )
+
     else:
-      for start in range(0, total_samples - int(1.0 * sr), step_samples):
-        end = min(start + chunk_samples, total_samples)
+      for start in range(
+          0,
+          total_samples - int(1.0 * sr),
+          step_samples,
+      ):
+
+        if (
+            _worker_cancel_event is not None
+            and _worker_cancel_event.is_set()
+        ):
+          was_cancelled = True
+          return (
+              candidate_path,
+              0.0,
+              False,
+              "__CANCELLED__",
+          )
+
+        end = min(
+            start + chunk_samples,
+            total_samples,
+        )
+
         if (end - start) < int(1.0 * sr):
           break
 
         segment_np = audio_np[start:end]
-        segment_tensor = torch.tensor(segment_np).unsqueeze(0)
+
+        segment_tensor = (
+            torch.tensor(segment_np)
+            .unsqueeze(0)
+        )
 
         with torch.no_grad():
-          segment_embedding = _worker_speaker_model.encode_batch(segment_tensor)
+          segment_embedding = (
+              _worker_speaker_model.encode_batch(
+                  segment_tensor
+              )
+          )
 
         cos_sim = F.cosine_similarity(
-            target_embedding, segment_embedding, dim=-1
+            target_embedding,
+            segment_embedding,
+            dim=-1,
         ).item()
-        similarity = round(max(0.0, cos_sim) * 100, 2)
+
+        similarity = round(
+            max(0.0, cos_sim) * 100,
+            2,
+        )
 
         if similarity > max_file_similarity:
           max_file_similarity = similarity
@@ -180,16 +327,38 @@ def process_candidate_worker(args):
         if max_file_similarity >= 95.0:
           break
 
-    if candidate_wav_path and os.path.exists(candidate_wav_path):
-      os.remove(candidate_wav_path)
-
     matched = max_file_similarity >= threshold
-    return (candidate_path, max_file_similarity, matched, None)
+
+    return (
+        candidate_path,
+        max_file_similarity,
+        matched,
+        None,
+    )
 
   except Exception as e:
-    return (candidate_path, 0.0, False, str(e))
+    return (
+        candidate_path,
+        0.0,
+        False,
+        str(e),
+    )
+
   finally:
-    if _worker_shared_counter is not None and _worker_lock is not None:
+    if (
+        candidate_wav_path
+        and os.path.exists(candidate_wav_path)
+    ):
+      try:
+        os.remove(candidate_wav_path)
+      except OSError:
+        pass
+
+    if (
+        not was_cancelled
+        and _worker_shared_counter is not None
+        and _worker_lock is not None
+    ):
       with _worker_lock:
         _worker_shared_counter.value += 1
 
@@ -202,9 +371,11 @@ def run_background_voice_search(
     shared_counter=None,
     lock=None,
     pause_event=None,
+    cancel_event=None,
 ):
-  """Многопроцессорный поиск с локальным скользящим окном."""
+  """Multiprocess voice search with cooperative cancellation."""
   global _current_session_dir
+
   try:
     threshold = float(threshold)
     num_processes = int(num_processes)
@@ -217,102 +388,283 @@ def run_background_voice_search(
         shared_counter.value = 0
 
     if not os.path.exists(folder_path):
-      raise FileNotFoundError(f"Указанная папка не найдена: {folder_path}")
+      raise FileNotFoundError(
+          f"Search folder not found: {folder_path}"
+      )
 
     results_root = "results"
     os.makedirs(results_root, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    _current_session_dir = os.path.abspath(
-        os.path.join(results_root, f"session_{timestamp}")
-    )
-    os.makedirs(_current_session_dir, exist_ok=True)
 
-    info_path = os.path.join(_current_session_dir, "search_info.txt")
-    with open(info_path, "w", encoding="utf-8") as f:
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    _current_session_dir = os.path.abspath(
+        os.path.join(
+            results_root,
+            f"session_{timestamp}",
+        )
+    )
+
+    os.makedirs(
+        _current_session_dir,
+        exist_ok=True,
+    )
+
+    info_path = os.path.join(
+        _current_session_dir,
+        "search_info.txt",
+    )
+
+    with open(
+        info_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
       f.write(
-          f"Дата запуска: {datetime.now()}\nПапка сканирования:"
-          f" {folder_path}\nПорог: {threshold}%\n"
+          f"Started: {datetime.now()}\n"
+          f"Search folder: {folder_path}\n"
+          f"Threshold: {threshold}%\n"
       )
 
-    print(f"Инициализация целевой модели SpeechBrain на {DEVICE.upper()}...")
-    temp_model = get_speaker_model()
+    matched_files = []
+    cancelled = False
 
-    target_waveform, target_wav_path = process_audio_file(file_path_or_data)
-    with torch.no_grad():
-      target_embedding = temp_model.encode_batch(target_waveform)
-    target_embedding_np = target_embedding.cpu().numpy()
+    if (
+        cancel_event is not None
+        and cancel_event.is_set()
+    ):
+      cancelled = True
+    else:
+      print(
+          f"Initializing target SpeechBrain model on "
+          f"{DEVICE.upper()}..."
+      )
 
-    if target_wav_path and os.path.exists(target_wav_path):
-      os.remove(target_wav_path)
+      temp_model = get_speaker_model()
 
-    supported_extensions = (".wav", ".mp3", ".opus", ".ogg", ".flac", ".m4a")
-    candidate_tasks = []
+      target_waveform, target_wav_path = (
+          process_audio_file(file_path_or_data)
+      )
 
-    for root, _, files in os.walk(folder_path):
-      for file in files:
-        if file.lower().endswith(supported_extensions):
-          candidate_path = os.path.join(root, file)
-          if os.path.abspath(candidate_path) == os.path.abspath(
+      try:
+        with torch.no_grad():
+          target_embedding = (
+              temp_model.encode_batch(
+                  target_waveform
+              )
+          )
+
+        target_embedding_np = (
+            target_embedding
+            .detach()
+            .cpu()
+            .numpy()
+        )
+      finally:
+        if (
+            target_wav_path
+            and os.path.exists(target_wav_path)
+        ):
+          os.remove(target_wav_path)
+
+      supported_extensions = (
+          ".wav",
+          ".mp3",
+          ".opus",
+          ".ogg",
+          ".flac",
+          ".m4a",
+          ".aac",
+      )
+
+      candidate_tasks = []
+
+      for root, _, files in os.walk(folder_path):
+
+        if (
+            cancel_event is not None
+            and cancel_event.is_set()
+        ):
+          cancelled = True
+          break
+
+        for file in files:
+          if not file.lower().endswith(
+              supported_extensions
+          ):
+            continue
+
+          candidate_path = os.path.join(
+              root,
+              file,
+          )
+
+          if os.path.abspath(
+              candidate_path
+          ) == os.path.abspath(
               str(file_path_or_data)
           ):
             continue
+
           candidate_tasks.append(
-              (candidate_path, target_embedding_np, threshold)
+              (
+                  candidate_path,
+                  target_embedding_np,
+                  threshold,
+              )
           )
 
-    if not candidate_tasks:
-      empty_report = os.path.join(_current_session_dir, "report.txt")
-      with open(empty_report, "w", encoding="utf-8") as f:
-        f.write("В указанной папке не найдено подходящих аудиофайлов.")
-      return
+      if not cancelled and candidate_tasks:
 
-    matched_files = []
+        with Pool(
+            processes=num_processes,
+            initializer=init_worker,
+            initargs=(
+                shared_counter,
+                lock,
+                pause_event,
+                cancel_event,
+            ),
+        ) as pool:
 
-    with Pool(
-        processes=num_processes,
-        initializer=init_worker,
-        initargs=(shared_counter, lock, pause_event),
-    ) as pool:
-      for candidate_path, score, matched, err in pool.imap_unordered(
-          process_candidate_worker, candidate_tasks
-      ):
-        file_name = os.path.basename(candidate_path)
-        if err:
-          print(f"[VOICE SEARCH ERROR] {candidate_path}: {err}")
-          continue
-        if matched:
-          dest_path = os.path.join(_current_session_dir, file_name)
-          shutil.copy2(candidate_path, dest_path)
-          matched_files.append((file_name, score))
-          print(
-              f"✅ Найдено совпадение: {file_name} ({score}%) -> скопировано в"
-              f" {_current_session_dir}"
-          )
+          for (
+              candidate_path,
+              score,
+              matched,
+              err,
+          ) in pool.imap_unordered(
+              process_candidate_worker,
+              candidate_tasks,
+          ):
 
-    report_path = os.path.join(_current_session_dir, "report.txt")
-    with open(report_path, "w", encoding="utf-8") as f:
-      f.write("=== Отчет о многопроцессорном голосовом поиске ===\n")
-      f.write(f"Дата и время: {datetime.now()}\n")
-      f.write(f"Сканируемая папка: {folder_path}\n")
-      f.write(f"Порог сходства: {threshold}%\n")
-      f.write(f"Всего найдено совпадений: {len(matched_files)}\n\n")
-      f.write("Список найденных файлов:\n")
-      for fname, score in matched_files:
-        f.write(f"- {fname} (Сходство: {score}%)\n")
+            if err == "__CANCELLED__":
+              cancelled = True
+              break
 
-    print(
-        "Многопроцессорный поиск успешно завершен. Найдено совпадений:"
-        f" {len(matched_files)}"
+            file_name = os.path.basename(
+                candidate_path
+            )
+
+            if err:
+              print(
+                  f"[VOICE SEARCH ERROR] "
+                  f"{candidate_path}: {err}"
+              )
+
+            elif matched:
+              dest_path = os.path.join(
+                  _current_session_dir,
+                  file_name,
+              )
+
+              shutil.copy2(
+                  candidate_path,
+                  dest_path,
+              )
+
+              matched_files.append(
+                  (file_name, score)
+              )
+
+              print(
+                  f"Match found: {file_name} "
+                  f"({score}%)"
+              )
+
+            if (
+                cancel_event is not None
+                and cancel_event.is_set()
+            ):
+              cancelled = True
+              break
+
+      elif not cancelled and not candidate_tasks:
+        print(
+            "No supported audio files found "
+            "in search folder."
+        )
+
+    report_path = os.path.join(
+        _current_session_dir,
+        "report.txt",
     )
+
+    with open(
+        report_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+      f.write(
+          "=== Voice search report ===\n"
+      )
+
+      f.write(
+          f"Date: {datetime.now()}\n"
+      )
+
+      f.write(
+          f"Search folder: {folder_path}\n"
+      )
+
+      f.write(
+          f"Threshold: {threshold}%\n"
+      )
+
+      f.write(
+          "Status: "
+          + (
+              "cancelled by user"
+              if cancelled
+              else "completed"
+          )
+          + "\n"
+      )
+
+      f.write(
+          f"Matches: {len(matched_files)}\n\n"
+      )
+
+      for fname, score in matched_files:
+        f.write(
+            f"- {fname} "
+            f"(Similarity: {score}%)\n"
+        )
+
+    if cancelled:
+      print(
+          "Voice search cancelled. "
+          f"Saved matches: {len(matched_files)}"
+      )
+    else:
+      print(
+          "Voice search completed. "
+          f"Matches: {len(matched_files)}"
+      )
+
+    return cancelled
 
   except Exception as e:
     error_msg = (
-        f"Критическая ошибка в run_background_voice_search:"
-        f" {e}\n{traceback.format_exc()}"
+        "Critical error in "
+        "run_background_voice_search: "
+        f"{e}\n{traceback.format_exc()}"
     )
+
     print(error_msg)
+
     if _current_session_dir:
-      error_path = os.path.join(_current_session_dir, "error_report.txt")
-      with open(error_path, "w", encoding="utf-8") as f:
+      error_path = os.path.join(
+          _current_session_dir,
+          "error_report.txt",
+      )
+
+      with open(
+          error_path,
+          "w",
+          encoding="utf-8",
+      ) as f:
         f.write(error_msg)
-    raise e
+
+    raise
