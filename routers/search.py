@@ -49,6 +49,17 @@ def background_search_runner(
         "Continuing through legacy progress manager."
     )
 
+  job_results_dir = (
+      os.path.abspath(
+          os.path.join(
+              "results",
+              f"job_{job.job_id}",
+          )
+      )
+      if job is not None
+      else None
+  )
+
   audio_extensions = (
       ".mp3",
       ".wav",
@@ -132,9 +143,7 @@ def background_search_runner(
         current_file=legacy_state[
             "current_file"
         ],
-        results_dir=legacy_state[
-            "results_dir"
-        ],
+        results_dir=job_results_dir,
     )
 
   def sync_job_control_state(
@@ -173,6 +182,7 @@ def background_search_runner(
               lock=lock,
               pause_event=pause_event,
               cancel_event=cancel_event,
+              results_dir=job_results_dir,
           )
       )
 

@@ -372,11 +372,42 @@ def run_background_voice_search(
     lock=None,
     pause_event=None,
     cancel_event=None,
+    results_dir=None,
 ):
   """Multiprocess voice search with cooperative cancellation."""
   global _current_session_dir
 
+  session_dir = None
+
   try:
+    results_root = "results"
+    os.makedirs(results_root, exist_ok=True)
+
+    if results_dir is not None:
+      session_dir = os.path.abspath(
+          results_dir
+      )
+    else:
+      timestamp = datetime.now().strftime(
+          "%Y%m%d_%H%M%S"
+      )
+
+      session_dir = os.path.abspath(
+          os.path.join(
+              results_root,
+              f"session_{timestamp}",
+          )
+      )
+
+    # Legacy compatibility only.
+    # Real file operations below use local session_dir.
+    _current_session_dir = session_dir
+
+    os.makedirs(
+        session_dir,
+        exist_ok=True,
+    )
+
     threshold = float(threshold)
     num_processes = int(num_processes)
 
@@ -392,27 +423,8 @@ def run_background_voice_search(
           f"Search folder not found: {folder_path}"
       )
 
-    results_root = "results"
-    os.makedirs(results_root, exist_ok=True)
-
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
-    )
-
-    _current_session_dir = os.path.abspath(
-        os.path.join(
-            results_root,
-            f"session_{timestamp}",
-        )
-    )
-
-    os.makedirs(
-        _current_session_dir,
-        exist_ok=True,
-    )
-
     info_path = os.path.join(
-        _current_session_dir,
+        session_dir,
         "search_info.txt",
     )
 
@@ -554,7 +566,7 @@ def run_background_voice_search(
 
             elif matched:
               dest_path = os.path.join(
-                  _current_session_dir,
+                  session_dir,
                   file_name,
               )
 
@@ -586,7 +598,7 @@ def run_background_voice_search(
         )
 
     report_path = os.path.join(
-        _current_session_dir,
+        session_dir,
         "report.txt",
     )
 
@@ -654,9 +666,9 @@ def run_background_voice_search(
 
     print(error_msg)
 
-    if _current_session_dir:
+    if session_dir:
       error_path = os.path.join(
-          _current_session_dir,
+          session_dir,
           "error_report.txt",
       )
 
