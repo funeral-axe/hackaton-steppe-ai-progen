@@ -308,50 +308,404 @@ def background_search_runner(
 
 @router.get("/results", response_class=HTMLResponse)
 @router.get("/results/{full_path:path}", response_class=HTMLResponse)
-async def browse_results(full_path: str = "", user=Depends(get_current_user)):
+async def browse_results(
+    full_path: str = "",
+    user=Depends(get_current_user),
+):
   if not user:
-    return RedirectResponse(url="/login", status_code=303)
+    return RedirectResponse(
+        url="/login",
+        status_code=303,
+    )
 
-  if not has_role(user, UserRole.USER.value):
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
     return RedirectResponse(
         url=role_home(user),
         status_code=303,
     )
 
-  base_dir = os.path.abspath("results")
-  target_path = os.path.normpath(os.path.join(base_dir, full_path))
+  base_dir = os.path.abspath(
+      "results"
+  )
 
-  if not target_path.startswith(base_dir):
-    return HTMLResponse("<h3>Доступ запрещен</h3>", status_code=403)
-  if not os.path.exists(target_path):
-    return HTMLResponse("<h3>Путь или файл не найден</h3>", status_code=404)
-  if os.path.isfile(target_path):
-    return FileResponse(target_path)
+  os.makedirs(
+      base_dir,
+      exist_ok=True,
+  )
 
-  items = os.listdir(target_path)
-  html_content = f"""
-    <!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Результаты | SonAr</title>
-    <style>body{{font-family:sans-serif;background:#f4f6f9;padding:20px;}}.container{{max-width:800px;margin:auto;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.1);}}a{{color:#2a5298;text-decoration:none;}}</style>
-    </head><body><div class="container">
-    <a href="/voice_search">&larr; Назад к поиску</a>
-    <h2>📂 Папка: /results/{full_path}</h2><ul>
-    """
-  if full_path:
-    parent_dir = "/".join(full_path.split("/")[:-1])
-    parent_url = f"/results/{parent_dir}" if parent_dir else "/results"
-    html_content += f'<li><a href="{parent_url}">📁 <b>.. (Наверх)</b></a></li>'
+  normalized_request_path = (
+      full_path
+      .replace("\\", "/")
+      .strip("/")
+  )
 
-  for item in sorted(items):
-    item_path_rel = (
-        f"{full_path}/{item}" if full_path else item
-    ).replace("\\", "/")
-    is_dir = os.path.isdir(os.path.join(target_path, item))
-    html_content += (
-        f'<li><a href="/results/{item_path_rel}">{"📁" if is_dir else "📄"} {item}</a></li>'
+  # ----------------------------------------------------------
+  # /results
+  #
+  # ?? ?????????? ?????????? ?????????? ????? ??????????.
+  # ?????????? ?????? ?????? ???????? ????????????.
+  # ----------------------------------------------------------
+
+  if not normalized_request_path:
+
+    owned_jobs = (
+        voice_job_manager.list_for_user(
+            user.id
+        )
     )
 
-  html_content += "</ul></div></body></html>"
-  return HTMLResponse(content=html_content)
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+      <meta charset="UTF-8">
+      <title>?????????? | SonAr</title>
+      <style>
+        body {
+          font-family: sans-serif;
+          background: #f4f6f9;
+          padding: 20px;
+        }
+
+        .container {
+          max-width: 800px;
+          margin: auto;
+          background: white;
+          padding: 30px;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        a {
+          color: #2a5298;
+          text-decoration: none;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <a href="/voice_search">&larr; ????? ? ??????</a>
+        <h2>?? ??? ?????????? ?????????? ??????</h2>
+        <ul>
+    """
+
+    visible_jobs = 0
+
+    for job in owned_jobs:
+
+      snapshot = job.snapshot()
+
+      results_dir = snapshot.get(
+          "results_dir"
+      )
+
+      if not results_dir:
+        continue
+
+      results_dir = os.path.abspath(
+          results_dir
+      )
+
+      try:
+        inside_results = (
+            os.path.commonpath(
+                [
+                    base_dir,
+                    results_dir,
+                ]
+            )
+            == base_dir
+        )
+      except ValueError:
+        inside_results = False
+
+      if not inside_results:
+        continue
+
+      expected_folder = (
+          f"job_{job.job_id}"
+      )
+
+      if (
+          os.path.basename(results_dir)
+          != expected_folder
+      ):
+        continue
+
+      if not os.path.isdir(
+          results_dir
+      ):
+        continue
+
+      visible_jobs += 1
+
+      html_content += (
+          '<li>'
+          f'<a href="/results/{expected_folder}/">'
+          f'?? {expected_folder}'
+          '</a>'
+          '</li>'
+      )
+
+    if visible_jobs == 0:
+      html_content += (
+          "<li>??????????? ???? ???</li>"
+      )
+
+    html_content += (
+        "</ul></div></body></html>"
+    )
+
+    return HTMLResponse(
+        content=html_content
+    )
+
+  # ----------------------------------------------------------
+  # /results/job_<job_id>/...
+  # ----------------------------------------------------------
+
+  path_parts = (
+      normalized_request_path.split(
+          "/"
+      )
+  )
+
+  job_folder = path_parts[0]
+
+  if not job_folder.startswith(
+      "job_"
+  ):
+    return HTMLResponse(
+        "<h3>???? ??? ???? ?? ??????</h3>",
+        status_code=404,
+    )
+
+  job_id = job_folder[
+      len("job_"):
+  ]
+
+  if not job_id:
+    return HTMLResponse(
+        "<h3>???? ??? ???? ?? ??????</h3>",
+        status_code=404,
+    )
+
+  job = voice_job_manager.get(
+      job_id
+  )
+
+  if job is None:
+    return HTMLResponse(
+        "<h3>?????? ?????? ?? ???????</h3>",
+        status_code=404,
+    )
+
+  if (
+      job.owner_user_id
+      != user.id
+  ):
+    return HTMLResponse(
+        "<h3>?????? ????????</h3>",
+        status_code=403,
+    )
+
+  job_base_dir = os.path.abspath(
+      os.path.join(
+          base_dir,
+          f"job_{job.job_id}",
+      )
+  )
+
+  snapshot = job.snapshot()
+
+  registered_results_dir = (
+      snapshot.get("results_dir")
+  )
+
+  if registered_results_dir:
+
+    registered_results_dir = (
+        os.path.abspath(
+            registered_results_dir
+        )
+    )
+
+    if (
+        registered_results_dir
+        != job_base_dir
+    ):
+      return HTMLResponse(
+          "<h3>?????? ????????</h3>",
+          status_code=403,
+      )
+
+  relative_inside_job = "/".join(
+      path_parts[1:]
+  )
+
+  target_path = os.path.abspath(
+      os.path.normpath(
+          os.path.join(
+              job_base_dir,
+              relative_inside_job,
+          )
+      )
+  )
+
+  try:
+    inside_job = (
+        os.path.commonpath(
+            [
+                job_base_dir,
+                target_path,
+            ]
+        )
+        == job_base_dir
+    )
+  except ValueError:
+    inside_job = False
+
+  if not inside_job:
+    return HTMLResponse(
+        "<h3>?????? ????????</h3>",
+        status_code=403,
+    )
+
+  if not os.path.exists(
+      target_path
+  ):
+    return HTMLResponse(
+        "<h3>???? ??? ???? ?? ??????</h3>",
+        status_code=404,
+    )
+
+  if os.path.isfile(
+      target_path
+  ):
+    return FileResponse(
+        target_path
+    )
+
+  items = os.listdir(
+      target_path
+  )
+
+  display_path = (
+      f"{job_folder}"
+      + (
+          f"/{relative_inside_job}"
+          if relative_inside_job
+          else ""
+      )
+  )
+
+  html_content = f"""
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+      <meta charset="UTF-8">
+      <title>?????????? | SonAr</title>
+      <style>
+        body {{
+          font-family: sans-serif;
+          background: #f4f6f9;
+          padding: 20px;
+        }}
+
+        .container {{
+          max-width: 800px;
+          margin: auto;
+          background: white;
+          padding: 30px;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }}
+
+        a {{
+          color: #2a5298;
+          text-decoration: none;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <a href="/voice_search">&larr; ????? ? ??????</a>
+        <h2>?? ?????: /results/{display_path}</h2>
+        <ul>
+  """
+
+  if relative_inside_job:
+
+    parent_inside_job = "/".join(
+        relative_inside_job
+        .split("/")[:-1]
+    )
+
+    parent_url = (
+        f"/results/{job_folder}/"
+        + (
+            parent_inside_job
+            if parent_inside_job
+            else ""
+        )
+    )
+
+  else:
+
+    parent_url = "/results"
+
+  html_content += (
+      '<li>'
+      f'<a href="{parent_url}">'
+      '?? <b>.. (??????)</b>'
+      '</a>'
+      '</li>'
+  )
+
+  for item in sorted(items):
+
+    item_path_rel = (
+        f"{display_path}/{item}"
+    ).replace(
+        "\\",
+        "/",
+    )
+
+    item_absolute_path = (
+        os.path.join(
+            target_path,
+            item,
+        )
+    )
+
+    is_dir = os.path.isdir(
+        item_absolute_path
+    )
+
+    icon = (
+        "??"
+        if is_dir
+        else "??"
+    )
+
+    html_content += (
+        '<li>'
+        f'<a href="/results/{item_path_rel}">'
+        f'{icon} {item}'
+        '</a>'
+        '</li>'
+    )
+
+  html_content += (
+      "</ul></div></body></html>"
+  )
+
+  return HTMLResponse(
+      content=html_content
+  )
 
 
 @router.post("/init_search")
