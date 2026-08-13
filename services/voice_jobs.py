@@ -4,7 +4,7 @@ import uuid
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 
 ACTIVE_STATUSES = {
@@ -44,6 +44,18 @@ class VoiceSearchJob:
     )
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+
+    _pause_event: Optional[Any] = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
+
+    _cancel_event: Optional[Any] = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
 
     _lock: threading.RLock = field(
         default_factory=threading.RLock,
@@ -86,6 +98,40 @@ class VoiceSearchJob:
                     else None
                 ),
             }
+
+    def attach_controls(
+        self,
+        pause_event,
+        cancel_event,
+    ):
+        with self._lock:
+            self._pause_event = pause_event
+            self._cancel_event = cancel_event
+
+            if self.status == "paused":
+                self._pause_event.set()
+            else:
+                self._pause_event.clear()
+
+            if self.status == "cancel_requested":
+                self._pause_event.clear()
+                self._cancel_event.set()
+            else:
+                self._cancel_event.clear()
+
+        return True
+
+    def detach_controls(self):
+        with self._lock:
+            self._pause_event = None
+            self._cancel_event = None
+
+    def controls_attached(self):
+        with self._lock:
+            return (
+                self._pause_event is not None
+                and self._cancel_event is not None
+            )
 
     def start(self, total):
         with self._lock:
@@ -145,6 +191,9 @@ class VoiceSearchJob:
                 "Search paused by user"
             )
 
+            if self._pause_event is not None:
+                self._pause_event.set()
+
             return True
 
     def resume(self):
@@ -156,6 +205,9 @@ class VoiceSearchJob:
             self.current_file = (
                 "Resuming search..."
             )
+
+            if self._pause_event is not None:
+                self._pause_event.clear()
 
             return True
 
@@ -173,6 +225,12 @@ class VoiceSearchJob:
                 "Stopping search..."
             )
 
+            if self._pause_event is not None:
+                self._pause_event.clear()
+
+            if self._cancel_event is not None:
+                self._cancel_event.set()
+
             return True
 
     def mark_cancelled(self):
@@ -185,6 +243,12 @@ class VoiceSearchJob:
                 "Search cancelled by user"
             )
             self.finished_at = utc_now()
+
+            if self._pause_event is not None:
+                self._pause_event.clear()
+
+            if self._cancel_event is not None:
+                self._cancel_event.set()
 
             return True
 
@@ -205,6 +269,12 @@ class VoiceSearchJob:
             self.current_file = "Done!"
             self.finished_at = utc_now()
 
+            if self._pause_event is not None:
+                self._pause_event.clear()
+
+            if self._cancel_event is not None:
+                self._cancel_event.clear()
+
             return True
 
     def fail(self, error):
@@ -215,6 +285,12 @@ class VoiceSearchJob:
                 "Search failed"
             )
             self.finished_at = utc_now()
+
+            if self._pause_event is not None:
+                self._pause_event.clear()
+
+            if self._cancel_event is not None:
+                self._cancel_event.clear()
 
 
 class VoiceSearchJobManager:
