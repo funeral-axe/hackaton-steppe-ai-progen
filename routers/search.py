@@ -79,6 +79,10 @@ def background_search_runner(
   # is being migrated to job-scoped endpoints.
   progress_manager.start(total_files)
 
+  # Remember the legacy state only to detect real transitions
+  # coming from the old frontend endpoints.
+  legacy_status_seen = progress_manager.get()["status"]
+
   # New independent state.
   if job is not None:
     started = job.start(total_files)
@@ -99,6 +103,12 @@ def background_search_runner(
   pause_event = multiprocessing.Event()
   cancel_event = multiprocessing.Event()
   search_done = threading.Event()
+
+  if job is not None:
+    job.attach_controls(
+        pause_event,
+        cancel_event,
+    )
 
   search_result = {
       "cancelled": False,
@@ -187,17 +197,26 @@ def background_search_runner(
     current_state = progress_manager.get()
     status = current_state["status"]
 
-    sync_job_control_state(status)
+    if job is not None:
+      # For job-aware searches the job itself owns the runtime
+      # events. The legacy manager is observed only when its
+      # status actually changes because the old frontend still
+      # uses /api/search_pause|resume|cancel.
+      if status != legacy_status_seen:
+        sync_job_control_state(status)
+        legacy_status_seen = status
 
-    if status == "cancel_requested":
-      pause_event.clear()
-      cancel_event.set()
+    else:
+      # Pure legacy fallback for searches without job_id.
+      if status == "cancel_requested":
+        pause_event.clear()
+        cancel_event.set()
 
-    elif status == "paused":
-      pause_event.set()
+      elif status == "paused":
+        pause_event.set()
 
-    elif status == "running":
-      pause_event.clear()
+      elif status == "running":
+        pause_event.clear()
 
     with lock:
       current_processed = (
@@ -263,6 +282,9 @@ def background_search_runner(
 
     if job is not None:
       job.finish()
+
+  if job is not None:
+    job.detach_controls()
 
   if (
       target_wav_path
