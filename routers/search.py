@@ -34,7 +34,21 @@ def background_search_runner(
     folder_path,
     threshold,
     workers_count,
+    job_id=None,
 ):
+  job = (
+      voice_job_manager.get(job_id)
+      if job_id
+      else None
+  )
+
+  if job_id and job is None:
+    print(
+        "[VOICE JOB WARNING] "
+        f"Job not found: {job_id}. "
+        "Continuing through legacy progress manager."
+    )
+
   audio_extensions = (
       ".mp3",
       ".wav",
@@ -61,7 +75,20 @@ def background_search_runner(
 
   total_files = len(all_files)
 
+  # Legacy state remains active while the frontend
+  # is being migrated to job-scoped endpoints.
   progress_manager.start(total_files)
+
+  # New independent state.
+  if job is not None:
+    started = job.start(total_files)
+
+    if not started:
+      print(
+          "[VOICE JOB WARNING] "
+          f"Could not start job {job.job_id}; "
+          f"current status={job.snapshot()['status']}"
+      )
 
   shared_counter = multiprocessing.Value(
       "i",
@@ -77,6 +104,52 @@ def background_search_runner(
       "cancelled": False,
       "error": None,
   }
+
+  def sync_job_from_legacy(
+      processed=None,
+  ):
+    if job is None:
+      return
+
+    legacy_state = progress_manager.get()
+
+    job.update(
+        processed=(
+            processed
+            if processed is not None
+            else legacy_state["processed"]
+        ),
+        current_file=legacy_state[
+            "current_file"
+        ],
+        results_dir=legacy_state[
+            "results_dir"
+        ],
+    )
+
+  def sync_job_control_state(
+      legacy_status,
+  ):
+    if job is None:
+      return
+
+    job_status = job.snapshot()["status"]
+
+    if legacy_status == "cancel_requested":
+      if job_status in {
+          "queued",
+          "running",
+          "paused",
+      }:
+        job.request_cancel()
+
+    elif legacy_status == "paused":
+      if job_status == "running":
+        job.pause()
+
+    elif legacy_status == "running":
+      if job_status == "paused":
+        job.resume()
 
   def run_search():
     try:
@@ -114,6 +187,8 @@ def background_search_runner(
     current_state = progress_manager.get()
     status = current_state["status"]
 
+    sync_job_control_state(status)
+
     if status == "cancel_requested":
       pause_event.clear()
       cancel_event.set()
@@ -133,12 +208,20 @@ def background_search_runner(
         current_processed
     )
 
+    sync_job_from_legacy(
+        current_processed
+    )
+
     time.sleep(0.3)
 
   with lock:
     current_processed = shared_counter.value
 
   progress_manager.update(
+      current_processed
+  )
+
+  sync_job_from_legacy(
       current_processed
   )
 
@@ -153,8 +236,33 @@ def background_search_runner(
         current_processed
     )
 
+    sync_job_from_legacy(
+        current_processed
+    )
+
+    if job is not None:
+      job.mark_cancelled()
+
+  elif search_result["error"] is not None:
+    # Keep legacy behavior untouched during migration.
+    progress_manager.finish()
+
+    sync_job_from_legacy(
+        current_processed
+    )
+
+    if job is not None:
+      job.fail(
+          search_result["error"]
+      )
+
   else:
     progress_manager.finish()
+
+    sync_job_from_legacy()
+
+    if job is not None:
+      job.finish()
 
   if (
       target_wav_path
@@ -462,7 +570,12 @@ async def api_search_voice(
     )
 
     background_tasks.add_task(
-        background_search_runner, temp_target_path, folder_path, threshold, 1
+        background_search_runner,
+        temp_target_path,
+        folder_path,
+        threshold,
+        1,
+        job.job_id,
     )
     return {
         "message": "\u041f\u043e\u0438\u0441\u043a \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0437\u0430\u043f\u0443\u0449\u0435\u043d.",
