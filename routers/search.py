@@ -86,15 +86,6 @@ def background_search_runner(
 
   total_files = len(all_files)
 
-  # Legacy state remains active while the frontend
-  # is being migrated to job-scoped endpoints.
-  progress_manager.start(total_files)
-
-  # Remember the legacy state only to detect real transitions
-  # coming from the old frontend endpoints.
-  legacy_status_seen = progress_manager.get()["status"]
-
-  # New independent state.
   if job is not None:
     started = job.start(total_files)
 
@@ -104,6 +95,18 @@ def background_search_runner(
           f"Could not start job {job.job_id}; "
           f"current status={job.snapshot()['status']}"
       )
+
+    # Job keeps its own result directory.
+    # It must never obtain this value from legacy global state.
+    job.update(
+        results_dir=job_results_dir,
+    )
+
+  else:
+    # Legacy fallback only.
+    progress_manager.start(
+        total_files
+    )
 
   shared_counter = multiprocessing.Value(
       "i",
@@ -126,49 +129,16 @@ def background_search_runner(
       "error": None,
   }
 
-  def sync_job_from_legacy(
-      processed=None,
+  def update_job_progress(
+      processed,
   ):
     if job is None:
       return
-
-    legacy_state = progress_manager.get()
 
     job.update(
-        processed=(
-            processed
-            if processed is not None
-            else legacy_state["processed"]
-        ),
-        current_file=legacy_state[
-            "current_file"
-        ],
+        processed=processed,
         results_dir=job_results_dir,
     )
-
-  def sync_job_control_state(
-      legacy_status,
-  ):
-    if job is None:
-      return
-
-    job_status = job.snapshot()["status"]
-
-    if legacy_status == "cancel_requested":
-      if job_status in {
-          "queued",
-          "running",
-          "paused",
-      }:
-        job.request_cancel()
-
-    elif legacy_status == "paused":
-      if job_status == "running":
-        job.pause()
-
-    elif legacy_status == "running":
-      if job_status == "paused":
-        job.resume()
 
   def run_search():
     try:
@@ -204,20 +174,31 @@ def background_search_runner(
 
   while not search_done.is_set():
 
-    current_state = progress_manager.get()
-    status = current_state["status"]
-
     if job is not None:
-      # For job-aware searches the job itself owns the runtime
-      # events. The legacy manager is observed only when its
-      # status actually changes because the old frontend still
-      # uses /api/search_pause|resume|cancel.
-      if status != legacy_status_seen:
-        sync_job_control_state(status)
-        legacy_status_seen = status
+
+      # New job-scoped path.
+      # Pause/resume/cancel events are owned by VoiceSearchJob.
+      # The global progress_manager is intentionally ignored.
+      with lock:
+        current_processed = (
+            shared_counter.value
+        )
+
+      update_job_progress(
+          current_processed
+      )
 
     else:
-      # Pure legacy fallback for searches without job_id.
+
+      # Pure legacy fallback for callers without job_id.
+      current_state = (
+          progress_manager.get()
+      )
+
+      status = current_state[
+          "status"
+      ]
+
       if status == "cancel_requested":
         pause_event.clear()
         cancel_event.set()
@@ -228,73 +209,83 @@ def background_search_runner(
       elif status == "running":
         pause_event.clear()
 
-    with lock:
-      current_processed = (
-          shared_counter.value
+      with lock:
+        current_processed = (
+            shared_counter.value
+        )
+
+      progress_manager.update(
+          current_processed
       )
-
-    progress_manager.update(
-        current_processed
-    )
-
-    sync_job_from_legacy(
-        current_processed
-    )
 
     time.sleep(0.3)
 
   with lock:
     current_processed = shared_counter.value
 
-  progress_manager.update(
-      current_processed
-  )
+  if job is not None:
 
-  sync_job_from_legacy(
-      current_processed
-  )
-
-  final_state = progress_manager.get()
-
-  if (
-      search_result["cancelled"]
-      or final_state["status"]
-      == "cancel_requested"
-  ):
-    progress_manager.mark_cancelled(
+    update_job_progress(
         current_processed
     )
 
-    sync_job_from_legacy(
-        current_processed
+    job_status = (
+        job.snapshot()["status"]
     )
 
-    if job is not None:
+    if (
+        search_result["cancelled"]
+        or job_status
+        in {
+            "cancel_requested",
+            "cancelled",
+        }
+    ):
       job.mark_cancelled()
 
-  elif search_result["error"] is not None:
-    # Keep legacy behavior untouched during migration.
-    progress_manager.finish()
-
-    sync_job_from_legacy(
-        current_processed
-    )
-
-    if job is not None:
+    elif (
+        search_result["error"]
+        is not None
+    ):
       job.fail(
           search_result["error"]
       )
 
-  else:
-    progress_manager.finish()
-
-    sync_job_from_legacy()
-
-    if job is not None:
+    else:
       job.finish()
 
-  if job is not None:
     job.detach_controls()
+
+  else:
+
+    # Legacy completion path remains available,
+    # but it cannot influence a job-scoped search.
+    progress_manager.update(
+        current_processed
+    )
+
+    final_state = (
+        progress_manager.get()
+    )
+
+    if (
+        search_result["cancelled"]
+        or final_state["status"]
+        == "cancel_requested"
+    ):
+      progress_manager.mark_cancelled(
+          current_processed
+      )
+
+    elif (
+        search_result["error"]
+        is not None
+    ):
+      # Preserve the existing legacy behavior.
+      progress_manager.finish()
+
+    else:
+      progress_manager.finish()
 
   if (
       target_wav_path
