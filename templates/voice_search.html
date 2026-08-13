@@ -314,6 +314,7 @@
     let activeRegion = null;
     let checkTimeHandler = null;
     let pollInterval = null;
+    let activeVoiceJobId = null;
 
     let timerInterval = null;
     let secondsElapsed = 0;
@@ -458,13 +459,25 @@
 
     document.getElementById('voiceSearchForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+
+        activeVoiceJobId = null;
+
         submitBtn.disabled = true;
         progressContainer.style.display = 'block';
         resultsContainer.innerHTML = '';
 
         // Разблокируем кнопки управления на случай повторного запуска
         pauseTaskBtn.disabled = false;
+        resumeTaskBtn.disabled = false;
         cancelTaskBtn.disabled = false;
+
+        pauseTaskBtn.style.display = 'inline-block';
+        resumeTaskBtn.style.display = 'none';
 
         resetTimer();
         startTimer();
@@ -477,19 +490,49 @@
         formData.append('threshold', thresholdInput.value);
 
         const resp = await fetch('/api/search_voice', { method: 'POST', body: formData });
-        const data = await resp.json();
 
-        if (data.error) {
+        let data = {};
+
+        try {
+            data = await resp.json();
+        } catch (_) {
+            data = {};
+        }
+
+        if (!resp.ok || data.error) {
             pauseTimer();
             progressContainer.style.display = 'none';
             submitBtn.disabled = false;
-            alert(data.error);
+
+            alert(
+                data.detail ||
+                data.error ||
+                '?? ??????? ????????? ????????? ?????.'
+            );
+
             return;
         }
 
+        if (!data.job_id) {
+            pauseTimer();
+            progressContainer.style.display = 'none';
+            submitBtn.disabled = false;
+
+            alert(
+                '?????? ?? ?????? job_id ??? ?????????? ??????.'
+            );
+
+            return;
+        }
+
+        const jobId = data.job_id;
+        activeVoiceJobId = jobId;
+
         pollInterval = setInterval(async () => {
             try {
-                const statusResp = await fetch('/api/search_progress');
+                const statusResp = await fetch(
+                    `/api/search_progress/${encodeURIComponent(jobId)}`
+                );
                 const status = await statusResp.json();
 
                 if (!statusResp.ok) {
@@ -551,12 +594,16 @@
                 const isPaused =
                     status.status === 'paused';
 
+                const isError =
+                    status.status === 'error';
+
                 if (
                     status.results_url &&
                     (
                         isPaused ||
                         isCompleted ||
-                        isCancelled
+                        isCancelled ||
+                        isError
                     )
                 ) {
                     let title = '';
@@ -600,6 +647,16 @@
                             'background: #fffbeb; border-color: #f59e0b; color: #b45309;';
                     }
 
+                    if (isError) {
+                        title =
+                            '????? ?????????? ? ???????';
+
+                        boxStyle =
+                            'background: #fef2f2; border-color: #ef4444; color: #991b1b;';
+
+                        pauseTimer();
+                    }
+
                     resultsContainer.innerHTML = `
                         <div
                             class="status-box-success"
@@ -629,7 +686,11 @@
                     `;
                 }
 
-                if (isCompleted || isCancelled) {
+                if (
+                    isCompleted ||
+                    isCancelled ||
+                    isError
+                ) {
                     clearInterval(pollInterval);
                     pollInterval = null;
 
@@ -647,10 +708,20 @@
                     resumeTaskBtn.style.display =
                         'none';
 
-                    progressStatusText.innerText =
-                        isCompleted
-                            ? '\u2705 \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.'
-                            : '\u23F9 \u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
+                    if (isCompleted) {
+                        progressStatusText.innerText =
+                            '\u2705 \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.';
+                    } else if (isCancelled) {
+                        progressStatusText.innerText =
+                            '\u23F9 \u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
+                    } else {
+                        progressStatusText.innerText =
+                            '\u274c \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0441\u044f \u0441 \u043e\u0448\u0438\u0431\u043a\u043e\u0439.';
+                    }
+
+                    if (activeVoiceJobId === jobId) {
+                        activeVoiceJobId = null;
+                    }
                 }
 
             } catch (err) {
@@ -663,18 +734,94 @@
     });
 
     pauseTaskBtn.addEventListener('click', async () => {
-        await fetch('/api/search_pause', { method: 'POST' });
-        pauseTimer();
-        pauseTaskBtn.style.display = 'none';
-        resumeTaskBtn.style.display = 'inline-block';
+        const jobId = activeVoiceJobId;
+
+        if (!jobId) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/search_pause/${encodeURIComponent(jobId)}`,
+                {
+                    method: 'POST'
+                }
+            );
+
+            let data = {};
+
+            try {
+                data = await response.json();
+            } catch (_) {
+                data = {};
+            }
+
+            if (!response.ok) {
+                alert(
+                    data.detail ||
+                    data.error ||
+                    '?? ??????? ????????????? ?????.'
+                );
+
+                return;
+            }
+
+            pauseTimer();
+            pauseTaskBtn.style.display = 'none';
+            resumeTaskBtn.style.display = 'inline-block';
+
+        } catch (err) {
+            console.error(
+                'Search pause error:',
+                err
+            );
+        }
     });
 
     resumeTaskBtn.addEventListener('click', async () => {
-        await fetch('/api/search_resume', { method: 'POST' });
-        startTimer();
-        resumeTaskBtn.style.display = 'none';
-        pauseTaskBtn.style.display = 'inline-block';
-        resultsContainer.innerHTML = '';
+        const jobId = activeVoiceJobId;
+
+        if (!jobId) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/search_resume/${encodeURIComponent(jobId)}`,
+                {
+                    method: 'POST'
+                }
+            );
+
+            let data = {};
+
+            try {
+                data = await response.json();
+            } catch (_) {
+                data = {};
+            }
+
+            if (!response.ok) {
+                alert(
+                    data.detail ||
+                    data.error ||
+                    '?? ??????? ??????????? ?????.'
+                );
+
+                return;
+            }
+
+            startTimer();
+            resumeTaskBtn.style.display = 'none';
+            pauseTaskBtn.style.display = 'inline-block';
+            resultsContainer.innerHTML = '';
+
+        } catch (err) {
+            console.error(
+                'Search resume error:',
+                err
+            );
+        }
     });
 
     cancelTaskBtn.addEventListener('click', async () => {
@@ -684,6 +831,12 @@
         );
 
         if (!confirmed) {
+            return;
+        }
+
+        const jobId = activeVoiceJobId;
+
+        if (!jobId) {
             return;
         }
 
@@ -698,7 +851,7 @@
             pauseTimer();
 
             const response = await fetch(
-                '/api/search_cancel',
+                `/api/search_cancel/${encodeURIComponent(jobId)}`,
                 {
                     method: 'POST'
                 }
