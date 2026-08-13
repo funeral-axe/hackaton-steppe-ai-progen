@@ -472,6 +472,162 @@ async def api_search_progress_by_job(
   return job.snapshot()
 
 
+@router.post("/api/search_pause/{job_id}")
+async def api_search_pause_by_job(
+    job_id: str,
+    user=Depends(get_current_user),
+):
+  if not user:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  job = voice_job_manager.get(job_id)
+
+  if job is None:
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Voice search job not found"},
+    )
+
+  if job.owner_user_id != user.id:
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  if not job.pause():
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": (
+                "Voice search job cannot be paused "
+                f"from status {job.snapshot()['status']}"
+            )
+        },
+    )
+
+  return {
+      "message": "Voice search paused",
+      "job_id": job.job_id,
+      "status": job.snapshot()["status"],
+  }
+
+
+@router.post("/api/search_resume/{job_id}")
+async def api_search_resume_by_job(
+    job_id: str,
+    user=Depends(get_current_user),
+):
+  if not user:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  job = voice_job_manager.get(job_id)
+
+  if job is None:
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Voice search job not found"},
+    )
+
+  if job.owner_user_id != user.id:
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  if not job.resume():
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": (
+                "Voice search job cannot be resumed "
+                f"from status {job.snapshot()['status']}"
+            )
+        },
+    )
+
+  return {
+      "message": "Voice search resumed",
+      "job_id": job.job_id,
+      "status": job.snapshot()["status"],
+  }
+
+
+@router.post("/api/search_cancel/{job_id}")
+async def api_search_cancel_by_job(
+    job_id: str,
+    user=Depends(get_current_user),
+):
+  if not user:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
+  if not has_role(
+      user,
+      UserRole.USER.value,
+  ):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  job = voice_job_manager.get(job_id)
+
+  if job is None:
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Voice search job not found"},
+    )
+
+  if job.owner_user_id != user.id:
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Forbidden"},
+    )
+
+  if not job.request_cancel():
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": (
+                "Voice search job cannot be cancelled "
+                f"from status {job.snapshot()['status']}"
+            )
+        },
+    )
+
+  return {
+      "message": "Voice search cancellation requested",
+      "job_id": job.job_id,
+      "status": job.snapshot()["status"],
+  }
+
+
 @router.post("/api/search_pause")
 async def api_search_pause(user=Depends(get_current_user)):
   if not user:
