@@ -1,0 +1,49 @@
+:root {
+    --sonar-sidebar-width: 280px;
+
+    --sonar-bg: #f5f7fb;
+    --sonar-surface: #ffffff;
+    --sonar-surface-soft: #f8fafc;
+    --sonar-surface-muted: #f1f5f9;
+
+    --sonar-sidebar: #0f172a;
+    --sonar-sidebar-hover: #172033;
+    --sonar-sidebar-active: #1e293b;
+
+    --sonar-primary: #2563eb;
+    --sonar-primary-hover: #1d4ed8;
+    --sonar-primary-soft: #eff6ff;
+
+    --sonar-success: #16a34a;
+    --sonar-success-soft: #f0fdf4;
+
+    --sonar-warning: #d97706;
+    --sonar-warning-soft: #fffbeb;
+
+    --sonar-danger: #dc2626;
+    --sonar-danger-soft: #fef2f2;
+
+    --sonar-text: #172033;
+    --sonar-text-secondary: #64748b;
+    --sonar-text-muted: #94a3b8;
+
+    --sonar-border: #e5eaf0;
+    --sonar-border-strong: #d7dee8;
+
+    --sonar-radius-sm: 10px;
+    --sonar-radius: 14px;
+    --sonar-radius-lg: 18px;
+    --sonar-radius-xl: 24px;
+
+    --sonar-shadow-sm:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 4px 12px rgba(15, 23, 42, 0.04);
+
+    --sonar-shadow:
+        0 12px 30px rgba(15, 23, 42, 0.07);
+
+    --sonar-shadow-lg:
+        0 24px 60px rgba(15, 23, 42, 0.12);
+
+    --sonar-transition: 180ms ease;
+}
