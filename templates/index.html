@@ -2,112 +2,977 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Поиск по аудиофайлам</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/admin.css') }}" rel="stylesheet">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Текстовый поиск — SonAr</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/sonar-tokens.css') }}"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/sonar-base.css') }}"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/sonar-components.css') }}"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/sonar-user.css') }}"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/sonar-search.css') }}"
+        rel="stylesheet"
+    >
 </head>
-<body class="bg-light">
-<div class="container py-4 py-lg-5">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div><h1 class="mb-1">Поиск по аудиофайлам</h1><div class="text-secondary">Пользователь: {{ user.login }}</div></div>
-        <div class="d-flex gap-2">{% if user.role == 'admin' %}<a href="/admin" class="btn btn-outline-primary">Админ-панель</a>{% endif %}<a href="/logout" class="btn btn-outline-secondary">Выйти</a></div>
-    </div>
 
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<body class="user-body">
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-6"><div class="stat-card"><div class="stat-icon"><i class="bi bi-file-earmark-music"></i></div><div><div class="stat-label">Проиндексировано</div><div class="stat-value">{{ indexed_count }}</div></div></div></div>
-        <div class="col-md-6"><div class="stat-card"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="stat-label">Ошибок обработки</div><div class="stat-value">{{ error_count }}</div></div></div></div>
-    </div>
+<div class="user-shell">
 
-    <div class="row g-4">
-        <div class="col-lg-5">
-            <div class="panel-card h-100">
-                <div class="panel-title"><i class="bi bi-database-add me-2"></i>Индексация папки</div>
-                <p class="text-secondary">Первый запуск распознаёт аудио через Whisper. Затем обрабатываются только новые или изменённые файлы.</p>
-                <form method="post" action="/index-folder">
-                    <label class="form-label">Путь к папке на сервере</label>
-                    <input class="form-control mb-3" name="folder_path" placeholder="D:\audio или /home/user/audio" required>
-                    <button class="btn btn-outline-primary"><i class="bi bi-play-circle"></i> Запустить индексацию</button>
-                </form>
-                <hr>
-                <div id="indexStatus" data-active="{{ 'true' if latest_job and latest_job.status in ['queued','running'] else 'false' }}">
-                    {% if latest_job %}
-                    <div class="d-flex justify-content-between"><span>Статус</span><strong id="jobStatus">{{ latest_job.status }}</strong></div>
-                    <div class="progress my-3"><div id="jobProgress" class="progress-bar" style="width: {{ ((latest_job.processed_files / latest_job.total_files * 100) if latest_job.total_files else 0)|round }}%"></div></div>
-                    <div class="small text-secondary" id="jobDetails">{{ latest_job.processed_files }} из {{ latest_job.total_files }}; файл: {{ latest_job.current_file or '-' }}</div>
-                    {% else %}<div class="text-secondary">Индексация ещё не запускалась.</div>{% endif %}
-                </div>
+    <header class="user-header">
+
+        <a
+            class="user-brand"
+            href="/user"
+        >
+            <span class="user-brand-mark">
+                <i class="bi bi-soundwave"></i>
+            </span>
+
+            <span>
+                <span class="user-brand-name">
+                    SonAr
+                </span>
+
+                <span class="user-brand-subtitle">
+                    Система поиска и анализа
+                </span>
+            </span>
+        </a>
+
+
+        <div class="user-account">
+
+            <div class="user-account-avatar">
+                <i class="bi bi-person"></i>
             </div>
+
+            <div class="user-account-meta">
+
+                <div class="user-account-role">
+                    Пользователь
+                </div>
+
+                <div class="user-account-name">
+                    {{ user.login }}
+                </div>
+
+            </div>
+
+            <a
+                class="user-logout"
+                href="/logout"
+            >
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Выйти</span>
+            </a>
+
         </div>
-        <div class="col-lg-7">
-            <div class="panel-card h-100">
-                <div class="panel-title"><i class="bi bi-search me-2"></i>Поиск по ключевым словам</div>
-                <ul class="nav nav-tabs mb-4" role="tablist">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#indexedSearch" type="button">По индексу</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#onlineSearch" type="button">Онлайн</button></li>
-                </ul>
-                <div class="tab-content">
-                    <div class="tab-pane fade show active" id="indexedSearch">
-                        <p class="text-secondary">Быстрый поиск по уже сохранённым расшифровкам.</p>
-                        <form method="post" action="/search">
-                            <label class="form-label">Ключевые слова или фразы</label>
-                            <textarea class="form-control mb-2" name="keywords" rows="4" maxlength="500" placeholder="договор, оплата, задолженность" required></textarea>
-                            <div class="form-text mb-3">От 1 до 10 значений через запятую, точку с запятой или с новой строки.</div>
-                            <label class="form-label">Условие поиска</label>
-                            <select class="form-select mb-4" name="search_mode">
-                                <option value="any">Найдено хотя бы одно слово</option>
-                                <option value="all">Найдены все указанные слова</option>
-                            </select>
-                            <button class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Найти по индексу</button>
-                        </form>
+
+    </header>
+
+
+    <div class="text-workspace">
+
+        <!-- =================================================
+             LEFT SIDEBAR
+             ================================================= -->
+
+        <aside class="text-sidebar">
+
+            <div class="text-sidebar-head">
+
+                <div class="text-sidebar-title">
+                    <i class="bi bi-search"></i>
+                    Текстовый поиск
+                </div>
+
+                <div class="text-sidebar-subtitle">
+                    Выберите, что именно
+                    хотите сделать.
+                </div>
+
+            </div>
+
+
+            <div class="text-nav-section">
+
+                <div class="text-nav-label">
+                    Навигация
+                </div>
+
+                <div class="text-nav-items">
+
+                    <a
+                        class="text-nav-item"
+                        href="/user"
+                    >
+                        <span class="text-nav-icon">
+                            <i class="bi bi-house"></i>
+                        </span>
+
+                        <span class="text-nav-copy">
+                            <span class="text-nav-name">
+                                Главная
+                            </span>
+
+                            <span class="text-nav-description">
+                                Выбор режима SonAr
+                            </span>
+                        </span>
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <div class="text-nav-section">
+
+                <div class="text-nav-label">
+                    Поиск
+                </div>
+
+                <div class="text-nav-items">
+
+                    <button
+                        class="text-nav-item active"
+                        type="button"
+                        data-search-view="quick"
+                    >
+                        <span class="text-nav-icon">
+                            <i class="bi bi-lightning"></i>
+                        </span>
+
+                        <span class="text-nav-copy">
+                            <span class="text-nav-name">
+                                Быстрый поиск
+                            </span>
+
+                            <span class="text-nav-description">
+                                Рекомендуемый режим
+                            </span>
+                        </span>
+                    </button>
+
+
+                    <button
+                        class="text-nav-item"
+                        type="button"
+                        data-search-view="online"
+                    >
+                        <span class="text-nav-icon">
+                            <i class="bi bi-folder2-open"></i>
+                        </span>
+
+                        <span class="text-nav-copy">
+                            <span class="text-nav-name">
+                                Поиск в папке
+                            </span>
+
+                            <span class="text-nav-description">
+                                Обработать файлы сейчас
+                            </span>
+                        </span>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="text-nav-section">
+
+                <div class="text-nav-label">
+                    Данные
+                </div>
+
+                <div class="text-nav-items">
+
+                    <button
+                        class="text-nav-item"
+                        type="button"
+                        data-search-view="indexing"
+                    >
+                        <span class="text-nav-icon">
+                            <i class="bi bi-database-add"></i>
+                        </span>
+
+                        <span class="text-nav-copy">
+                            <span class="text-nav-name">
+                                Добавить данные
+                            </span>
+
+                            <span class="text-nav-description">
+                                Подготовить папку для поиска
+                            </span>
+                        </span>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="text-nav-section">
+
+                <div class="text-nav-label">
+                    Другой режим
+                </div>
+
+                <div class="text-nav-items">
+
+                    <a
+                        class="text-nav-item"
+                        href="/voice_search"
+                    >
+                        <span class="text-nav-icon">
+                            <i class="bi bi-mic"></i>
+                        </span>
+
+                        <span class="text-nav-copy">
+                            <span class="text-nav-name">
+                                Голосовой поиск
+                            </span>
+
+                            <span class="text-nav-description">
+                                Найти по образцу голоса
+                            </span>
+                        </span>
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <div class="text-sidebar-footer">
+
+                <div class="text-sidebar-tip">
+                    <i class="bi bi-lightbulb"></i>
+
+                    <span>
+                        Если данные уже загружались
+                        в SonAr, используйте
+                        «Быстрый поиск».
+                    </span>
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =================================================
+             MAIN AREA
+             ================================================= -->
+
+        <main class="text-main">
+
+            <header class="text-main-header">
+
+                <div class="text-heading-copy">
+
+                    <div class="text-heading-tag">
+                        <i class="bi bi-search"></i>
+                        Текстовый модуль SonAr
                     </div>
-                    <div class="tab-pane fade" id="onlineSearch">
-                        <div class="alert alert-warning py-2"><i class="bi bi-info-circle me-1"></i>Whisper обработает все файлы.</div>
-                        <form method="post" action="/online-search">
-                            <label class="form-label">Путь к папке на сервере</label>
-                            <input class="form-control mb-3" name="folder_path" placeholder="D:\audio или /home/user/audio" required>
-                            <label class="form-label">Ключевые слова или фразы</label>
-                            <textarea class="form-control mb-2" name="keywords" rows="4" maxlength="500" placeholder="договор, оплата, задолженность" required></textarea>
-                            <div class="form-text mb-3">От 1 до 10 значений.</div>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Условие поиска</label>
-                                    <select class="form-select" name="search_mode">
-                                        <option value="any">Хотя бы одно слово</option>
-                                        <option value="all">Все указанные слова</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Модель Whisper</label>
-                                    <select class="form-select" name="model_name">
-                                        <option value="small">small — быстрее</option>
-                                        <option value="medium" selected>medium — рекомендуется</option>
-                                        <option value="large-v3">large-v3 — точнее</option>
-                                        <option value="large-v3-turbo">large-v3-turbo</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Язык</label>
-                                    <select class="form-select" name="language">
-                                        <option value="ru" selected>Русский</option>
-                                        <option value="kk">Казахский</option>
-                                        <option value="auto">Определить автоматически</option>
-                                    </select>
-                                </div>
+
+                    <h1>
+                        Найдите нужную информацию
+                    </h1>
+
+                    <p>
+                        Выберите инструмент слева.
+                        Для большинства задач достаточно
+                        быстрого поиска.
+                    </p>
+
+                </div>
+
+
+                <div class="text-stats">
+
+                    <div class="text-stat">
+
+                        <div class="text-stat-icon">
+                            <i class="bi bi-file-earmark-check"></i>
+                        </div>
+
+                        <div>
+                            <div class="text-stat-label">
+                                Готово к поиску
                             </div>
-                            <button class="btn btn-success btn-lg"><i class="bi bi-lightning-charge"></i> Запуск</button>
-                        </form>
+
+                            <div class="text-stat-value">
+                                {{ indexed_count }}
+                            </div>
+                        </div>
+
                     </div>
+
+
+                    <div class="text-stat warning">
+
+                        <div class="text-stat-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+
+                        <div>
+                            <div class="text-stat-label">
+                                Ошибок
+                            </div>
+
+                            <div class="text-stat-value">
+                                {{ error_count }}
+                            </div>
+                        </div>
+
+                    </div>
+
                 </div>
+
+            </header>
+
+
+            <div class="text-alerts">
+
+                {% if message %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-1"></i>
+                    {{ message }}
+                </div>
+                {% endif %}
+
+                {% if error %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    {{ error }}
+                </div>
+                {% endif %}
+
             </div>
-        </div>
+
+
+            <!-- =================================================
+                 QUICK SEARCH
+                 ================================================= -->
+
+            <section
+                class="text-view"
+                data-search-panel="quick"
+            >
+
+                <div class="task-card">
+
+                    <div class="task-card-header">
+
+                        <div class="task-card-icon">
+                            <i class="bi bi-lightning"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="task-card-title">
+                                Быстрый поиск
+                            </h2>
+
+                            <div class="task-card-description">
+                                Ищет по данным, которые SonAr
+                                уже обработал ранее.
+                                Это самый быстрый
+                                и рекомендуемый способ.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="task-card-body">
+
+                        <div class="beginner-hint">
+
+                            <i class="bi bi-info-circle"></i>
+
+                            <span>
+                                Просто введите слова или фразы,
+                                которые хотите найти.
+                                Например:
+                                <strong>
+                                    договор, оплата, задолженность
+                                </strong>.
+                            </span>
+
+                        </div>
+
+
+                        <form
+                            method="post"
+                            action="/search"
+                        >
+
+                            <div class="quick-search-layout">
+
+                                <div>
+
+                                    <label class="form-label">
+                                        Что нужно найти?
+                                    </label>
+
+                                    <textarea
+                                        class="form-control search-textarea"
+                                        name="keywords"
+                                        rows="4"
+                                        maxlength="500"
+                                        placeholder="Введите слова или фразы..."
+                                        required
+                                    ></textarea>
+
+                                    <div class="field-help">
+                                        <i class="bi bi-info-circle"></i>
+
+                                        <span>
+                                            Можно указать до 10 значений
+                                            через запятую
+                                            или с новой строки.
+                                        </span>
+                                    </div>
+
+                                </div>
+
+
+                                <div>
+
+                                    <label class="form-label">
+                                        Как искать?
+                                    </label>
+
+                                    <select
+                                        class="form-select"
+                                        name="search_mode"
+                                    >
+                                        <option value="any">
+                                            Найти хотя бы одно
+                                        </option>
+
+                                        <option value="all">
+                                            Найти все слова
+                                        </option>
+                                    </select>
+
+                                    <div class="field-help">
+                                        <i class="bi bi-lightbulb"></i>
+
+                                        <span>
+                                            Обычно подходит
+                                            первый вариант.
+                                        </span>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="search-action-row">
+
+                                <div class="search-action-note">
+                                    Поиск выполняется
+                                    по уже подготовленным данным.
+                                </div>
+
+                                <button
+                                    class="btn btn-primary primary-task-button"
+                                    type="submit"
+                                >
+                                    <i class="bi bi-search me-1"></i>
+                                    Найти
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 ONLINE SEARCH
+                 ================================================= -->
+
+            <section
+                class="text-view"
+                data-search-panel="online"
+                hidden
+            >
+
+                <div class="task-card">
+
+                    <div class="task-card-header">
+
+                        <div class="task-card-icon whisper">
+                            <i class="bi bi-folder2-open"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="task-card-title">
+                                Поиск в папке
+                            </h2>
+
+                            <div class="task-card-description">
+                                Используйте этот режим,
+                                если нужные аудиофайлы
+                                ещё не добавлялись в SonAr.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="task-card-body">
+
+                        <div class="beginner-hint">
+
+                            <i class="bi bi-clock"></i>
+
+                            <span>
+                                Этот режим медленнее:
+                                SonAr сначала расшифрует
+                                аудиофайлы через Whisper,
+                                а затем выполнит поиск.
+                            </span>
+
+                        </div>
+
+
+                        <form
+                            method="post"
+                            action="/online-search"
+                        >
+
+                            <div class="online-core-grid">
+
+                                <div>
+
+                                    <label class="form-label">
+                                        Где находятся аудиофайлы?
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        name="folder_path"
+                                        placeholder="Например: D:\audio"
+                                        required
+                                    >
+
+                                    <div class="field-help">
+                                        <i class="bi bi-folder"></i>
+
+                                        <span>
+                                            Укажите полный путь
+                                            к папке на сервере.
+                                        </span>
+                                    </div>
+
+                                </div>
+
+
+                                <div>
+
+                                    <label class="form-label">
+                                        Что нужно найти?
+                                    </label>
+
+                                    <textarea
+                                        class="form-control search-textarea"
+                                        name="keywords"
+                                        rows="4"
+                                        maxlength="500"
+                                        placeholder="Введите слова или фразы..."
+                                        required
+                                    ></textarea>
+
+                                </div>
+
+                            </div>
+
+
+                            <details class="advanced-settings">
+
+                                <summary>
+                                    <i class="bi bi-sliders"></i>
+                                    Дополнительные настройки
+                                </summary>
+
+
+                                <div class="advanced-settings-content">
+
+                                    <div>
+
+                                        <label class="form-label">
+                                            Как искать?
+                                        </label>
+
+                                        <select
+                                            class="form-select"
+                                            name="search_mode"
+                                        >
+                                            <option value="any">
+                                                Хотя бы одно слово
+                                            </option>
+
+                                            <option value="all">
+                                                Все слова
+                                            </option>
+                                        </select>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <label class="form-label">
+                                            Модель распознавания
+                                        </label>
+
+                                        <select
+                                            class="form-select"
+                                            name="model_name"
+                                        >
+                                            <option value="small">
+                                                Small — быстрее
+                                            </option>
+
+                                            <option
+                                                value="medium"
+                                                selected
+                                            >
+                                                Medium — рекомендуется
+                                            </option>
+
+                                            <option value="large-v3">
+                                                Large v3 — точнее
+                                            </option>
+
+                                            <option value="large-v3-turbo">
+                                                Large v3 Turbo
+                                            </option>
+                                        </select>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <label class="form-label">
+                                            Язык
+                                        </label>
+
+                                        <select
+                                            class="form-select"
+                                            name="language"
+                                        >
+                                            <option
+                                                value="ru"
+                                                selected
+                                            >
+                                                Русский
+                                            </option>
+
+                                            <option value="kk">
+                                                Казахский
+                                            </option>
+
+                                            <option value="auto">
+                                                Определить автоматически
+                                            </option>
+                                        </select>
+
+                                    </div>
+
+                                </div>
+
+                            </details>
+
+
+                            <div class="search-action-row">
+
+                                <div class="search-action-note">
+                                    Расшифровки
+                                    не будут добавлены
+                                    в основной индекс.
+                                </div>
+
+                                <button
+                                    class="btn btn-primary primary-task-button"
+                                    type="submit"
+                                >
+                                    <i class="bi bi-play-fill me-1"></i>
+                                    Начать поиск
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 INDEXING
+                 ================================================= -->
+
+            <section
+                class="text-view"
+                data-search-panel="indexing"
+                hidden
+            >
+
+                <div class="task-card">
+
+                    <div class="task-card-header">
+
+                        <div class="task-card-icon data">
+                            <i class="bi bi-database-add"></i>
+                        </div>
+
+                        <div>
+
+                            <h2 class="task-card-title">
+                                Добавить данные
+                            </h2>
+
+                            <div class="task-card-description">
+                                Подготовьте папку с аудиофайлами,
+                                чтобы потом искать по ней
+                                быстро и без повторной расшифровки.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="task-card-body">
+
+                        <div class="index-steps">
+
+                            <div class="index-step">
+
+                                <div class="index-step-number">
+                                    1
+                                </div>
+
+                                <div class="index-step-title">
+                                    Укажите папку
+                                </div>
+
+                                <div class="index-step-description">
+                                    Введите полный путь
+                                    к аудиофайлам.
+                                </div>
+
+                            </div>
+
+
+                            <div class="index-step">
+
+                                <div class="index-step-number">
+                                    2
+                                </div>
+
+                                <div class="index-step-title">
+                                    Запустите обработку
+                                </div>
+
+                                <div class="index-step-description">
+                                    SonAr распознает
+                                    новые файлы.
+                                </div>
+
+                            </div>
+
+
+                            <div class="index-step">
+
+                                <div class="index-step-number">
+                                    3
+                                </div>
+
+                                <div class="index-step-title">
+                                    Используйте поиск
+                                </div>
+
+                                <div class="index-step-description">
+                                    После обработки
+                                    используйте быстрый поиск.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <form
+                            class="index-form"
+                            method="post"
+                            action="/index-folder"
+                        >
+
+                            <div>
+
+                                <label class="form-label">
+                                    Папка с аудиофайлами
+                                </label>
+
+                                <input
+                                    class="form-control"
+                                    name="folder_path"
+                                    placeholder="Например: D:\audio"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <button
+                                class="btn btn-primary"
+                                type="submit"
+                            >
+                                <i class="bi bi-play-circle me-1"></i>
+                                Добавить данные
+                            </button>
+
+                        </form>
+
+
+                        <div
+                            class="index-status-box"
+                            id="indexStatus"
+                            data-active="{{ 'true' if latest_job and latest_job.status in ['queued','running'] else 'false' }}"
+                        >
+
+                            {% if latest_job %}
+
+                            <div class="index-status-head">
+
+                                <div>
+
+                                    <div class="index-status-label">
+                                        Текущая задача
+                                    </div>
+
+                                    <div
+                                        class="index-status-value"
+                                        id="jobStatus"
+                                    >
+                                        {{ latest_job.status }}
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="progress">
+
+                                <div
+                                    id="jobProgress"
+                                    class="progress-bar"
+                                    style="width: {{ ((latest_job.processed_files / latest_job.total_files * 100) if latest_job.total_files else 0)|round }}%"
+                                ></div>
+
+                            </div>
+
+
+                            <div
+                                class="index-details"
+                                id="jobDetails"
+                            >
+                                {{ latest_job.processed_files }}
+                                из
+                                {{ latest_job.total_files }};
+                                файл:
+                                {{ latest_job.current_file or '-' }}
+                            </div>
+
+                            {% else %}
+
+                            <div class="index-empty">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Сейчас активной обработки нет.
+                            </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
     </div>
+
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', path='js/search.js') }}"></script>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+<script
+    src="{{ url_for('static', path='js/search.js') }}"
+></script>
+
+<script
+    src="{{ url_for('static', path='js/search-workspace.js') }}"
+></script>
+
 </body>
 </html>

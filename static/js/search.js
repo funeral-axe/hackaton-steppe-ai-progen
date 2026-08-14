@@ -9,7 +9,20 @@ async function refreshStatus() {
         const status = document.getElementById("jobStatus");
         const progress = document.getElementById("jobProgress");
         const details = document.getElementById("jobDetails");
-        if (status) status.textContent = data.status;
+        const statusLabels = {
+            queued: "В очереди",
+            running: "Выполняется",
+            completed: "Завершено",
+            error: "Ошибка",
+            cancelled: "Отменено",
+            paused: "Приостановлено",
+        };
+
+        if (status) {
+            status.textContent =
+                statusLabels[data.status] ||
+                data.status;
+        }
         if (progress) progress.style.width = `${data.percent || 0}%`;
         if (details) details.textContent = `${data.processed || 0} из ${data.total || 0}; файл: ${data.current_file || "-"}; ошибок: ${data.failed || 0}`;
         if (["queued", "running"].includes(data.status)) {
