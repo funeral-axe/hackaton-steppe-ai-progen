@@ -1,424 +1,1063 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Панель оператора — SonAr</title>
+    <meta charset="utf-8">
 
-    <script src="https://unpkg.com/wavesurfer.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
-    <style>
-        :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg-color: #f6f7f9;
-            --card-bg: #ffffff;
-            --text-main: #2c2c2c;
-            --text-muted: #666666;
-            --border-color: #e5e7eb;
-            --danger: #ef4444;
-            --success: #22c55e;
-        }
+    <title>Рабочее место оператора — SonAr</title>
 
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg-color);
-            color: var(--text-main);
-        }
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
 
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--card-bg);
-            padding: 16px 30px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-        }
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
 
-        .navbar span {
-            font-weight: 600;
-            color: var(--primary);
-        }
+    <link
+        href="{{ url_for('static', path='css/sonar-tokens.css') }}"
+        rel="stylesheet"
+    >
 
-        .navbar a {
-            text-decoration: none;
-            padding: 8px 14px;
-            border-radius: 8px;
-            background: #fee2e2;
-            color: #991b1b;
-            transition: 0.2s;
-        }
+    <link
+        href="{{ url_for('static', path='css/sonar-base.css') }}"
+        rel="stylesheet"
+    >
 
-        .navbar a:hover {
-            background: #fecaca;
-        }
+    <link
+        href="{{ url_for('static', path='css/sonar-components.css') }}"
+        rel="stylesheet"
+    >
 
-        .app-container {
-            max-width: 1000px;
-            margin: 30px auto;
-            padding: 0 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-        }
+    <link
+        href="{{ url_for('static', path='css/sonar-user.css') }}"
+        rel="stylesheet"
+    >
 
-        .card {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.04);
-        }
+    <link
+        href="{{ url_for('static', path='css/sonar-operator.css') }}"
+        rel="stylesheet"
+    >
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+    <script
+        src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"
+    ></script>
 
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
+    <script
+        src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"
+    ></script>
 
-        .badge {
-            background: #e0e7ff;
-            color: #3730a3;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        /* Формы и поля */
-        .upload-block input, .search-box input, .field input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            background: #fafafa;
-            box-sizing: border-box;
-            font-size: 14px;
-            outline: none;
-            transition: 0.2s;
-        }
-
-        .upload-block input:focus, .search-box input:focus, .field input:focus {
-            border-color: var(--primary);
-            background: #fff;
-        }
-
-        .waveform {
-            margin-top: 20px;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .controls button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 10px;
-            background: #e0e7ff;
-            color: #3730a3;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: 0.2s;
-        }
-
-        .controls button:hover {
-            background: #c7d2fe;
-        }
-
-        .region-data {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .field {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .field label {
-            font-size: 13px;
-            margin-bottom: 5px;
-            color: var(--text-muted);
-        }
-
-        .btn-primary {
-            margin-top: 25px;
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            background: var(--primary);
-            color: white;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        /* Вкладки поиска */
-        .tab-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .tab-btn {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-weight: 600;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .tab-btn.active {
-            color: var(--primary);
-            border-bottom: 2px solid var(--primary);
-            margin-bottom: -2px;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .search-results {
-            margin-top: 20px;
-            max-height: 350px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-            text-align: left;
-        }
-
-        th, td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        th {
-            background: #f8fafc;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .status {
-            margin-top: 15px;
-            font-size: 14px;
-        }
-    </style>
 </head>
-<body>
 
-<nav class="navbar">
-    <div>Оператор: <span>{{ user.username }}</span></div>
-    <div><a href="/logout">Выйти из системы</a></div>
-</nav>
+<body class="operator-body">
 
-<div class="app-container">
+<div class="operator-shell">
 
-    <!-- БЛОК 1: ДОБАВЛЕНИЕ НОВОГО СЛЕПКА (СВЕРХУ) -->
-    <section class="card">
-        <div class="card-title">➕ Создание биометрического слепка VoicePrint</div>
+    <!-- =====================================================
+         HEADER
+         ===================================================== -->
 
-        <div class="upload-block" style="margin-top: 15px;">
-            <input type="file" id="audioFile" accept="audio/*">
+    <header class="user-header">
+
+        <div class="user-brand">
+
+            <span class="user-brand-mark">
+                <i class="bi bi-soundwave"></i>
+            </span>
+
+            <span>
+                <span class="user-brand-name">
+                    SonAr
+                </span>
+
+                <span class="user-brand-subtitle">
+                    Система поиска и анализа
+                </span>
+            </span>
+
         </div>
 
-        <div id="waveform" class="waveform"></div>
 
-        <div class="controls">
-            <button onclick="playAudio()">▶ Play</button>
-            <button onclick="pauseAudio()">⏸ Pause</button>
-            <button onclick="zoomIn()">＋ Масштаб</button>
-            <button onclick="zoomOut()">－ Масштаб</button>
-            <button onclick="fixDuration()" style="background: #fef08a; color: #854d0e; font-weight: bold;">🛠 Исправить длину (3-10с)</button>
-        </div>
+        <div class="user-account">
 
-        <div class="region-data">
-            <div>Начало: <span id="startTime">0.00</span> сек</div>
-            <div>Конец: <span id="endTime">0.00</span> сек</div>
-            <div>Длина: <span id="regionDuration" style="font-weight: bold; color: var(--primary);">0.00</span> сек</div>
-        </div>
-
-        <div class="form-grid">
-            <div class="field">
-                <label>ИИН *</label>
-                <input type="text" id="un" placeholder="12-значный ИИН">
-            </div>
-            <div class="field">
-                <label>Телефон *</label>
-                <input type="text" id="phone" placeholder="77012345678">
-            </div>
-            <div class="field">
-                <label>Фамилия *</label>
-                <input type="text" id="lastName" placeholder="Введите фамилию">
-            </div>
-            <div class="field">
-                <label>Имя *</label>
-                <input type="text" id="firstName" placeholder="Введите имя">
-            </div>
-            <div class="field" style="grid-column: span 2;">
-                <label>Отчество</label>
-                <input type="text" id="middleName" placeholder="Если имеется (необязательно)">
-            </div>
-        </div>
-
-        <button class="btn-primary" onclick="uploadNewVoiceprint()">Сохранить VoicePrint в базу</button>
-        <div id="status" class="status"></div>
-    </section>
-
-    <!-- БЛОК 2: ПОИСК ПО БАЗЕ (СНИЗУ С ВЫБОРОМ МЕТОДА) -->
-    <section class="card">
-        <div class="card-header">
-            <div class="card-title">🔍 Поиск по базе данных VoicePrint</div>
-            <div class="badge">Всего записей в базе: <span>{{ total_count }}</span></div>
-        </div>
-
-        <!-- Переключатель режима поиска -->
-        <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab('tab-un', event)">По ИИН или Телефону</button>
-            <button class="tab-btn" onclick="switchTab('tab-bio', event)">По отрезку голоса (Биометрия)</button>
-        </div>
-
-        <!-- Режим 1: Поиск по ИИН или Телефону -->
-        <div id="tab-un" class="tab-content active">
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="searchInput" placeholder="Введите ИИН или номер телефона для поиска..." value="{{ search or '' }}">
-                <button class="btn-primary" style="margin-top: 0; width: 140px;" onclick="filterBySearch()">Найти</button>
+            <div class="user-account-avatar">
+                <i class="bi bi-person-workspace"></i>
             </div>
 
-            <div class="search-results">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>ИИН (UN)</th>
-                            <th>ФИО</th>
-                            <th>Телефон</th>
-                            <th>Аудио</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if results %}
-                            {% for r in results %}
-                            <tr>
-                                <td>{{ r.id }}</td>
-                                <td><strong>{{ r.un }}</strong></td>
-                                <td>{{ r.last_name }} {{ r.first_name }} {{ r.middle_name or '' }}</td>
-                                <td>{{ r.phone }}</td>
-                                <td><audio controls src="/operator/audio/{{ r.id }}" style="height: 30px; width: 140px;"></audio></td>
-                                <td><a href="/operator/download/{{ r.id }}" style="color: var(--primary); text-decoration: none; font-weight: 500;">Скачать JSON</a></td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Записи не найдены</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <div class="user-account-meta">
 
-        <!-- Режим 2: Биометрический поиск по отрезку -->
-        <div id="tab-bio" class="tab-content">
-            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
-                Загрузите аудиозапись, выделите отрезок (от 3 до 10 секунд) и система найдет похожие голоса в базе.
-            </div>
-
-            <div class="upload-block">
-                <input type="file" id="searchAudioFile" accept="audio/*">
-            </div>
-
-            <div id="searchWaveform" class="waveform"></div>
-
-            <div class="controls">
-                <button onclick="playSearchAudio()">▶ Play</button>
-                <button onclick="pauseSearchAudio()">⏸ Pause</button>
-            </div>
-
-            <div class="region-data">
-                <div>Начало: <span id="searchStartTime">0.00</span> сек</div>
-                <div>Конец: <span id="searchEndTime">0.00</span> сек</div>
-                <div>Длина: <span id="searchRegionDuration" style="font-weight: bold; color: var(--primary);">0.00</span> сек</div>
-            </div>
-
-            <div style="margin-top: 15px; display: flex; gap: 15px; align-items: center;">
-                <div class="field" style="flex: 1;">
-                    <label>Порог сходства (%): <span id="thresholdVal">70</span>%</label>
-                    <input type="range" id="threshold" min="40" max="95" value="70" oninput="document.getElementById('thresholdVal').innerText = this.value">
+                <div class="user-account-role">
+                    Оператор
                 </div>
+
+                <div class="user-account-name">
+                    {{ user.username }}
+                </div>
+
             </div>
 
-            <button class="btn-primary" style="background: #0ea5e9;" onclick="performVoiceSearch()">Найти совпадения в базе</button>
-            <div id="searchStatus" class="status"></div>
+            <a
+                class="user-logout"
+                href="/logout"
+            >
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Выйти</span>
+            </a>
 
-            <div class="search-results" style="margin-top: 20px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Сходство</th>
-                            <th>ИИН (UN)</th>
-                            <th>ФИО</th>
-                            <th>Телефон</th>
-                            <th>Аудиооригинал</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bioSearchResultsBody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Выполните поиск по отрезку</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
         </div>
-    </section>
+
+    </header>
+
+
+    <!-- =====================================================
+         WORKSPACE
+         ===================================================== -->
+
+    <div class="operator-workspace">
+
+
+        <!-- =================================================
+             SIDEBAR
+             ================================================= -->
+
+        <aside class="operator-sidebar">
+
+            <div class="operator-sidebar-head">
+
+                <div class="operator-sidebar-kicker">
+                    <i class="bi bi-headset"></i>
+                    Рабочее место
+                </div>
+
+                <div class="operator-sidebar-title">
+                    Голосовая база
+                </div>
+
+                <div class="operator-sidebar-text">
+                    Добавляйте образцы голосов
+                    и находите нужные записи
+                    в базе SonAr.
+                </div>
+
+            </div>
+
+
+            <div class="operator-nav-section">
+
+                <div class="operator-nav-label">
+                    Голосовые данные
+                </div>
+
+                <div class="operator-nav">
+
+                    <button
+                        class="operator-nav-item active"
+                        type="button"
+                        data-operator-view="register"
+                    >
+
+                        <span class="operator-nav-icon">
+                            <i class="bi bi-person-plus"></i>
+                        </span>
+
+                        <span class="operator-nav-copy">
+
+                            <span class="operator-nav-name">
+                                Добавить голос
+                            </span>
+
+                            <span class="operator-nav-description">
+                                Новая запись человека
+                            </span>
+
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        class="operator-nav-item"
+                        type="button"
+                        data-operator-view="registry"
+                    >
+
+                        <span class="operator-nav-icon">
+                            <i class="bi bi-people"></i>
+                        </span>
+
+                        <span class="operator-nav-copy">
+
+                            <span class="operator-nav-name">
+                                База голосов
+                            </span>
+
+                            <span class="operator-nav-description">
+                                Поиск по ИИН и телефону
+                            </span>
+
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="operator-nav-section">
+
+                <div class="operator-nav-label">
+                    Поиск
+                </div>
+
+                <div class="operator-nav">
+
+                    <button
+                        class="operator-nav-item"
+                        type="button"
+                        data-operator-view="biometric"
+                    >
+
+                        <span class="operator-nav-icon">
+                            <i class="bi bi-soundwave"></i>
+                        </span>
+
+                        <span class="operator-nav-copy">
+
+                            <span class="operator-nav-name">
+                                Поиск по голосу
+                            </span>
+
+                            <span class="operator-nav-description">
+                                Сравнить образец с базой
+                            </span>
+
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="operator-sidebar-footer">
+
+                <div class="operator-sidebar-tip">
+
+                    <i class="bi bi-lightbulb"></i>
+
+                    <span>
+                        Для качественного сравнения
+                        используйте чистый фрагмент речи
+                        длительностью от 3 до 10 секунд.
+                    </span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =================================================
+             MAIN
+             ================================================= -->
+
+        <main class="operator-main">
+
+            <header class="operator-main-head">
+
+                <div class="operator-heading">
+
+                    <div class="operator-heading-kicker">
+                        <i class="bi bi-shield-check"></i>
+                        Операторский модуль SonAr
+                    </div>
+
+                    <h1>
+                        Работа с голосовыми данными
+                    </h1>
+
+                    <p>
+                        Добавление голосов,
+                        просмотр базы и поиск совпадений
+                        находятся в отдельных разделах.
+                    </p>
+
+                </div>
+
+
+                <div class="operator-stats">
+
+                    <div class="operator-stat">
+
+                        <div class="operator-stat-icon">
+                            <i class="bi bi-database"></i>
+                        </div>
+
+                        <div>
+
+                            <div class="operator-stat-label">
+                                Голосов в базе
+                            </div>
+
+                            <div class="operator-stat-value">
+                                {{ total_count }}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 VIEW 1 — REGISTER
+                 ================================================= -->
+
+            <section
+                class="operator-view"
+                data-operator-panel="register"
+            >
+
+                <div class="operator-card">
+
+                    <div class="operator-card-header">
+
+                        <div class="operator-card-heading">
+
+                            <div class="operator-card-icon">
+                                <i class="bi bi-person-plus"></i>
+                            </div>
+
+                            <div>
+
+                                <h2 class="operator-card-title">
+                                    Добавить голос в базу
+                                </h2>
+
+                                <div class="operator-card-description">
+                                    Заполните данные человека,
+                                    загрузите запись
+                                    и выберите чистый фрагмент речи.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="operator-card-body">
+
+                        <div class="operator-registration-grid">
+
+
+                            <!-- PERSON -->
+
+                            <div class="operator-section">
+
+                                <div class="operator-section-title">
+
+                                    <span class="operator-section-number">
+                                        1
+                                    </span>
+
+                                    Данные человека
+
+                                </div>
+
+
+                                <div class="operator-person-fields">
+
+                                    <div class="operator-field">
+
+                                        <label for="un">
+                                            ИИН *
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="un"
+                                            placeholder="12-значный ИИН"
+                                        >
+
+                                    </div>
+
+
+                                    <div class="operator-field">
+
+                                        <label for="phone">
+                                            Телефон *
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="phone"
+                                            placeholder="77012345678"
+                                        >
+
+                                    </div>
+
+
+                                    <div class="operator-field">
+
+                                        <label for="lastName">
+                                            Фамилия *
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="lastName"
+                                            placeholder="Введите фамилию"
+                                        >
+
+                                    </div>
+
+
+                                    <div class="operator-field">
+
+                                        <label for="firstName">
+                                            Имя *
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="firstName"
+                                            placeholder="Введите имя"
+                                        >
+
+                                    </div>
+
+
+                                    <div class="operator-field full">
+
+                                        <label for="middleName">
+                                            Отчество
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="middleName"
+                                            placeholder="Необязательно"
+                                        >
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- VOICE -->
+
+                            <div class="operator-section">
+
+                                <div class="operator-section-title">
+
+                                    <span class="operator-section-number">
+                                        2
+                                    </span>
+
+                                    Образец голоса
+
+                                </div>
+
+
+                                <div class="operator-upload-zone">
+
+                                    <input
+                                        type="file"
+                                        id="audioFile"
+                                        accept="audio/*"
+                                    >
+
+                                </div>
+
+
+                                <div
+                                    id="waveform"
+                                    class="waveform operator-waveform"
+                                ></div>
+
+
+                                <div class="operator-waveform-controls">
+
+                                    <button
+                                        type="button"
+                                        onclick="playAudio()"
+                                    >
+                                        <i class="bi bi-play-fill"></i>
+                                        Слушать
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onclick="pauseAudio()"
+                                    >
+                                        <i class="bi bi-pause-fill"></i>
+                                        Пауза
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onclick="zoomIn()"
+                                    >
+                                        <i class="bi bi-zoom-in"></i>
+                                        Приблизить
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onclick="zoomOut()"
+                                    >
+                                        <i class="bi bi-zoom-out"></i>
+                                        Отдалить
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onclick="fixDuration()"
+                                    >
+                                        <i class="bi bi-magic"></i>
+                                        Исправить длину
+                                    </button>
+
+                                </div>
+
+
+                                <div class="operator-region-data">
+
+                                    <div>
+                                        Начало:
+                                        <span id="startTime">
+                                            0.00
+                                        </span>
+                                        сек.
+                                    </div>
+
+                                    <div>
+                                        Конец:
+                                        <span id="endTime">
+                                            0.00
+                                        </span>
+                                        сек.
+                                    </div>
+
+                                    <div>
+                                        Длина:
+                                        <span id="regionDuration">
+                                            0.00
+                                        </span>
+                                        сек.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="operator-action-row">
+
+                            <div class="operator-action-note">
+
+                                <i class="bi bi-info-circle"></i>
+
+                                <span>
+                                    После сохранения SonAr создаст
+                                    голосовой отпечаток
+                                    и добавит запись
+                                    в общую голосовую базу.
+                                </span>
+
+                            </div>
+
+
+                            <button
+                                class="operator-primary-action"
+                                type="button"
+                                onclick="uploadNewVoiceprint()"
+                            >
+                                <i class="bi bi-database-add me-1"></i>
+                                Добавить голос
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            id="status"
+                            class="status"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 VIEW 2 — REGISTRY
+                 ================================================= -->
+
+            <section
+                class="operator-view"
+                data-operator-panel="registry"
+                hidden
+            >
+
+                <div class="operator-card">
+
+                    <div class="operator-card-header">
+
+                        <div class="operator-card-heading">
+
+                            <div class="operator-card-icon">
+                                <i class="bi bi-people"></i>
+                            </div>
+
+                            <div>
+
+                                <h2 class="operator-card-title">
+                                    База голосов
+                                </h2>
+
+                                <div class="operator-card-description">
+                                    Найдите человека
+                                    по ИИН или номеру телефона,
+                                    прослушайте сохранённый образец
+                                    или скачайте голосовой отпечаток.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="operator-card-body">
+
+                        <!-- Старые tab buttons остаются специально:
+                             их использует существующий JavaScript. -->
+
+                        <div class="legacy-tab-buttons">
+
+                            <button
+                                id="operatorTabRegistry"
+                                class="tab-btn active"
+                                type="button"
+                                onclick="switchTab('tab-un', event)"
+                            >
+                                База
+                            </button>
+
+                            <button
+                                id="operatorTabBio"
+                                class="tab-btn"
+                                type="button"
+                                onclick="switchTab('tab-bio', event)"
+                            >
+                                Голос
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            id="tab-un"
+                            class="tab-content active"
+                        >
+
+                            <div class="operator-search-toolbar">
+
+                                <input
+                                    type="text"
+                                    id="searchInput"
+                                    placeholder="Введите ИИН или номер телефона"
+                                    value="{{ search or '' }}"
+                                >
+
+                                <button
+                                    type="button"
+                                    onclick="filterBySearch()"
+                                >
+                                    <i class="bi bi-search me-1"></i>
+                                    Найти
+                                </button>
+
+                            </div>
+
+
+                            <div class="operator-table-shell">
+
+                                <table class="operator-table">
+
+                                    <thead>
+
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>ИИН</th>
+                                        <th>ФИО</th>
+                                        <th>Телефон</th>
+                                        <th>Аудио</th>
+                                        <th>Действие</th>
+                                    </tr>
+
+                                    </thead>
+
+
+                                    <tbody>
+
+                                    {% if results %}
+
+                                        {% for r in results %}
+
+                                        <tr>
+
+                                            <td>
+                                                {{ r.id }}
+                                            </td>
+
+                                            <td>
+                                                <strong>
+                                                    {{ r.un }}
+                                                </strong>
+                                            </td>
+
+                                            <td>
+                                                {{ r.last_name }}
+                                                {{ r.first_name }}
+                                                {{ r.middle_name or '' }}
+                                            </td>
+
+                                            <td>
+                                                {{ r.phone }}
+                                            </td>
+
+                                            <td>
+
+                                                <audio
+                                                    controls
+                                                    src="/operator/audio/{{ r.id }}"
+                                                ></audio>
+
+                                            </td>
+
+                                            <td>
+
+                                                <a
+                                                    class="operator-download"
+                                                    href="/operator/download/{{ r.id }}"
+                                                >
+                                                    <i class="bi bi-download me-1"></i>
+                                                    Скачать
+                                                </a>
+
+                                            </td>
+
+                                        </tr>
+
+                                        {% endfor %}
+
+                                    {% else %}
+
+                                        <tr>
+
+                                            <td
+                                                colspan="6"
+                                                class="operator-empty-row"
+                                            >
+                                                Записи не найдены
+                                            </td>
+
+                                        </tr>
+
+                                    {% endif %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 VIEW 3 — BIOMETRIC SEARCH
+                 ================================================= -->
+
+            <section
+                class="operator-view"
+                data-operator-panel="biometric"
+                hidden
+            >
+
+                <div class="operator-card">
+
+                    <div class="operator-card-header">
+
+                        <div class="operator-card-heading">
+
+                            <div class="operator-card-icon">
+                                <i class="bi bi-soundwave"></i>
+                            </div>
+
+                            <div>
+
+                                <h2 class="operator-card-title">
+                                    Поиск человека по голосу
+                                </h2>
+
+                                <div class="operator-card-description">
+                                    Загрузите запись,
+                                    выделите от 3 до 10 секунд речи,
+                                    и SonAr сравнит голос
+                                    с сохранённой базой.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="operator-card-body">
+
+                        <div
+                            id="tab-bio"
+                            class="tab-content"
+                        >
+
+                            <div class="operator-bio-layout">
+
+
+                                <div class="operator-section">
+
+                                    <div class="operator-section-title">
+
+                                        <span class="operator-section-number">
+                                            1
+                                        </span>
+
+                                        Голосовой образец
+
+                                    </div>
+
+
+                                    <div class="operator-upload-zone">
+
+                                        <input
+                                            type="file"
+                                            id="searchAudioFile"
+                                            accept="audio/*"
+                                        >
+
+                                    </div>
+
+
+                                    <div
+                                        id="searchWaveform"
+                                        class="waveform operator-waveform"
+                                    ></div>
+
+
+                                    <div class="operator-waveform-controls">
+
+                                        <button
+                                            type="button"
+                                            onclick="playSearchAudio()"
+                                        >
+                                            <i class="bi bi-play-fill"></i>
+                                            Слушать
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onclick="pauseSearchAudio()"
+                                        >
+                                            <i class="bi bi-pause-fill"></i>
+                                            Пауза
+                                        </button>
+
+                                    </div>
+
+
+                                    <div class="operator-region-data">
+
+                                        <div>
+                                            Начало:
+                                            <span id="searchStartTime">
+                                                0.00
+                                            </span>
+                                            сек.
+                                        </div>
+
+                                        <div>
+                                            Конец:
+                                            <span id="searchEndTime">
+                                                0.00
+                                            </span>
+                                            сек.
+                                        </div>
+
+                                        <div>
+                                            Длина:
+                                            <span id="searchRegionDuration">
+                                                0.00
+                                            </span>
+                                            сек.
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+
+                                <aside class="operator-bio-settings">
+
+                                    <h3>
+                                        Настройки поиска
+                                    </h3>
+
+                                    <p>
+                                        Для большинства случаев
+                                        достаточно стандартного
+                                        порога 70%.
+                                    </p>
+
+
+                                    <div class="operator-threshold">
+
+                                        <label for="threshold">
+
+                                            <span>
+                                                Минимальное сходство
+                                            </span>
+
+                                            <span>
+                                                <strong id="thresholdVal">
+                                                    70
+                                                </strong>%
+                                            </span>
+
+                                        </label>
+
+
+                                        <input
+                                            type="range"
+                                            id="threshold"
+                                            min="40"
+                                            max="95"
+                                            value="70"
+                                            oninput="document.getElementById('thresholdVal').innerText = this.value"
+                                        >
+
+
+                                        <div class="operator-threshold-hint">
+                                            Чем выше значение,
+                                            тем строже SonAr
+                                            будет сравнивать голоса.
+                                        </div>
+
+                                    </div>
+
+
+                                    <button
+                                        class="operator-bio-action"
+                                        type="button"
+                                        onclick="performVoiceSearch()"
+                                    >
+                                        <i class="bi bi-search me-1"></i>
+                                        Найти совпадения
+                                    </button>
+
+
+                                    <div
+                                        id="searchStatus"
+                                        class="status"
+                                    ></div>
+
+                                </aside>
+
+                            </div>
+
+
+                            <div class="operator-bio-results">
+
+                                <div class="operator-table-shell">
+
+                                    <table class="operator-table">
+
+                                        <thead>
+
+                                        <tr>
+                                            <th>Сходство</th>
+                                            <th>ИИН</th>
+                                            <th>ФИО</th>
+                                            <th>Телефон</th>
+                                            <th>Аудио</th>
+                                        </tr>
+
+                                        </thead>
+
+
+                                        <tbody id="bioSearchResultsBody">
+
+                                        <tr>
+
+                                            <td
+                                                colspan="5"
+                                                class="operator-empty-row"
+                                            >
+                                                Загрузите голосовой образец
+                                                и выполните поиск
+                                            </td>
+
+                                        </tr>
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
 
 </div>
 
@@ -669,5 +1308,10 @@
         window.addEventListener('scroll', resetTimer, true);
     })();
 </script>
+
+<script
+    src="{{ url_for('static', path='js/operator-workspace.js') }}"
+></script>
+
 </body>
 </html>
