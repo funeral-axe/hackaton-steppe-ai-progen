@@ -7,7 +7,7 @@
 <thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Тип</th><th>Объект</th><th>IP</th></tr></thead>
 <tbody>
 {% for item in logs %}
-<tr><td>{{ item.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ item.user.login if item.user else '-' }}</td><td>{{ item.action }}</td><td>{{ item.object_type or '-' }}</td><td>{{ item.object_name or '-' }}</td><td>{{ item.ip_address or '-' }}</td></tr>
+<tr><td>{{ item.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ item.user.login if item.user else '-' }}</td><td>{{ item.action }}</td><td>{{ {'User': 'Пользователь'}.get(item.object_type, item.object_type or '-') }}</td><td>{{ item.object_name or '-' }}</td><td>{{ item.ip_address or '-' }}</td></tr>
 {% else %}<tr><td colspan="6" class="text-secondary">Записей нет</td></tr>{% endfor %}
 </tbody></table></div></div>
 {% endblock %}

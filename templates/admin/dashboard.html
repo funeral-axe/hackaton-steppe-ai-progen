@@ -30,7 +30,7 @@
                     {% for item in login_logs %}
                     <tr>
                         <td>{{ item.login }}</td><td>{{ item.ip_address }}</td>
-                        <td><span class="badge {{ 'text-bg-success' if item.status == 'success' else 'text-bg-danger' }}">{{ item.status }}</span></td>
+                        <td><span class="badge {{ 'text-bg-success' if item.status == 'success' else 'text-bg-danger' }}">{{ {'success': 'Успешно', 'failed': 'Ошибка', 'error': 'Ошибка'}.get(item.status, item.status) }}</span></td>
                         <td>{{ item.login_time.strftime('%d.%m.%Y %H:%M') }}</td>
                     </tr>
                     {% else %}<tr><td colspan="4" class="text-secondary">Записей нет</td></tr>{% endfor %}

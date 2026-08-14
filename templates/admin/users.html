@@ -14,22 +14,22 @@
             <tr>
                 <td>{{ item.id }}</td>
                 <td class="fw-semibold">{{ item.login }}</td>
-                <td><span class="badge text-bg-primary">{{ item.role }}</span></td>
+                <td><span class="badge text-bg-primary">{{ {'admin': 'Администратор', 'operator': 'Оператор', 'user': 'Пользователь'}.get(item.role, item.role) }}</span></td>
                 <td><span class="status-dot {{ 'status-active' if item.is_active else 'status-blocked' }}"></span>{{ 'Активен' if item.is_active else 'Заблокирован' }}</td>
                 <td>{{ item.last_login.strftime('%d.%m.%Y %H:%M') if item.last_login else '-' }}</td>
                 <td class="actions">
-                    <button class="btn btn-sm btn-outline-warning edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                    <button title="Редактировать" aria-label="Редактировать пользователя" class="btn btn-sm btn-outline-warning edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal"
                             data-id="{{ item.id }}" data-login="{{ item.login }}" data-role="{{ item.role }}" data-active="{{ 'true' if item.is_active else 'false' }}"><i class="bi bi-pencil"></i></button>
-                    <a class="btn btn-sm btn-outline-info" href="/admin/ips?user_id={{ item.id }}"><i class="bi bi-globe"></i></a>
-                    <button class="btn btn-sm btn-outline-secondary password-btn" data-bs-toggle="modal" data-bs-target="#passwordModal"
+                    <a title="Настроить IP" aria-label="Настроить разрешённые IP" class="btn btn-sm btn-outline-info" href="/admin/ips?user_id={{ item.id }}"><i class="bi bi-globe"></i></a>
+                    <button title="Изменить пароль" aria-label="Изменить пароль" class="btn btn-sm btn-outline-secondary password-btn" data-bs-toggle="modal" data-bs-target="#passwordModal"
                             data-id="{{ item.id }}" data-login="{{ item.login }}"><i class="bi bi-key"></i></button>
                     <form method="post" action="/admin/users/toggle">
                         <input type="hidden" name="user_id" value="{{ item.id }}">
-                        <button class="btn btn-sm btn-outline-dark" {% if item.id == user.id %}disabled{% endif %}><i class="bi bi-lock"></i></button>
+                        <button title="Заблокировать или разблокировать" aria-label="Изменить статус пользователя" class="btn btn-sm btn-outline-dark" {% if item.id == user.id %}disabled{% endif %}><i class="bi bi-lock"></i></button>
                     </form>
                     <form method="post" action="/admin/users/delete" onsubmit="return confirm('Удалить пользователя {{ item.login }}?')">
                         <input type="hidden" name="user_id" value="{{ item.id }}">
-                        <button class="btn btn-sm btn-outline-danger" {% if item.id == user.id or item.login == 'admin' %}disabled{% endif %}><i class="bi bi-trash"></i></button>
+                        <button title="Удалить" aria-label="Удалить пользователя" class="btn btn-sm btn-outline-danger" {% if item.id == user.id or item.login == 'admin' %}disabled{% endif %}><i class="bi bi-trash"></i></button>
                     </form>
                 </td>
             </tr>

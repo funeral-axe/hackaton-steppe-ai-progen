@@ -8,7 +8,7 @@
 <tbody>
 {% for item in logs %}
 <tr><td>{{ item.login_time.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ item.login }}</td><td>{{ item.ip_address }}</td>
-<td><span class="badge {{ 'text-bg-success' if item.status == 'success' else 'text-bg-danger' }}">{{ item.status }}</span></td>
+<td><span class="badge {{ 'text-bg-success' if item.status == 'success' else 'text-bg-danger' }}">{{ {'success': 'Успешно', 'failed': 'Ошибка', 'error': 'Ошибка'}.get(item.status, item.status) }}</span></td>
 <td>{{ item.message or '-' }}</td><td class="text-truncate browser-cell">{{ item.browser or '-' }}</td></tr>
 {% else %}<tr><td colspan="6" class="text-secondary">Записей нет</td></tr>{% endfor %}
 </tbody></table></div></div>
