@@ -3,70 +3,899 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Онлайн-поиск — SonAr</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="{{ url_for('static', path='css/admin.css') }}" rel="stylesheet">
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', path='css/admin.css') }}"
+        rel="stylesheet"
+    >
+
+    <style>
+        .live-result-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            background: #fff;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, .05);
+            animation: resultIn .3s ease;
+        }
+
+        @keyframes resultIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .keyword-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 20px;
+            background: #e7f0ff;
+            color: #0d6efd;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .segment-box {
+            margin-top: 10px;
+            padding: 12px 14px;
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+            border-radius: 6px;
+        }
+
+        .segment-time {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0d6efd;
+        }
+
+        .file-path {
+            font-size: 12px;
+            color: #6c757d;
+            word-break: break-all;
+        }
+
+        .result-counter {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            border-radius: 50%;
+            background: #0d6efd;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+    </style>
 </head>
+
 <body class="bg-light">
+
 <div class="container py-4 py-lg-5">
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="mb-1">Онлайн-поиск</h1>
-            <div class="text-secondary">Расшифровка займет некоторое время</div>
+            <h1 class="mb-1">
+                Онлайн-поиск
+            </h1>
+
+            <div class="text-secondary">
+                Результаты появляются сразу после обработки каждого файла
+            </div>
         </div>
-        <a href="/" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Назад</a>
+
+        <a
+            href="/"
+            class="btn btn-outline-secondary"
+        >
+            <i class="bi bi-arrow-left"></i>
+            Назад
+        </a>
     </div>
 
-    <div class="panel-card">
+
+    <!-- ПРОГРЕСС -->
+
+    <div class="panel-card mb-4">
+
         <div class="d-flex flex-wrap justify-content-between gap-3 mb-3">
-            <div><strong>Статус:</strong> <span id="statusText">{{ job.status }}</span></div>
-            <div><strong>Найдено файлов:</strong> <span id="resultsCount">0</span></div>
+
+            <div>
+                <strong>Статус:</strong>
+
+                <span id="statusText">
+                    {{ job.status }}
+                </span>
+            </div>
+
+            <div>
+                <strong>Найдено файлов:</strong>
+
+                <span id="resultsCount">
+                    {{ job.results|length if job.results else 0 }}
+                </span>
+            </div>
+
         </div>
+
+
         <div class="progress mb-3" style="height: 28px;">
-            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: {{ job.percent }}%">{{ job.percent }}%</div>
+
+            <div
+                id="progressBar"
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                style="width: {{ job.percent }}%"
+            >
+                {{ job.percent }}%
+            </div>
+
         </div>
+
+
         <div class="row g-3 small">
-            <div class="col-md-4"><span class="text-secondary">Обработано:</span> <strong id="processed">{{ job.processed_files }}</strong> из <strong id="total">{{ job.total_files }}</strong></div>
-            <div class="col-md-4"><span class="text-secondary">Успешно:</span> <strong id="successful">{{ job.successful_files }}</strong></div>
-            <div class="col-md-4"><span class="text-secondary">Ошибок:</span> <strong id="failed">{{ job.failed_files }}</strong></div>
+
+            <div class="col-md-4">
+                <span class="text-secondary">
+                    Обработано:
+                </span>
+
+                <strong id="processed">
+                    {{ job.processed_files }}
+                </strong>
+
+                из
+
+                <strong id="total">
+                    {{ job.total_files }}
+                </strong>
+            </div>
+
+
+            <div class="col-md-4">
+                <span class="text-secondary">
+                    Успешно:
+                </span>
+
+                <strong
+                    id="successful"
+                    class="text-success"
+                >
+                    {{ job.successful_files }}
+                </strong>
+            </div>
+
+
+            <div class="col-md-4">
+                <span class="text-secondary">
+                    Ошибок:
+                </span>
+
+                <strong
+                    id="failed"
+                    class="text-danger"
+                >
+                    {{ job.failed_files }}
+                </strong>
+            </div>
+
         </div>
+
+
         <hr>
-        <div><span class="text-secondary">Текущий файл:</span> <strong id="currentFile">{{ job.current_file or '-' }}</strong></div>
-        <div id="errorBox" class="alert alert-danger mt-3 d-none"></div>
+
+
+        <div>
+            <span class="text-secondary">
+                Текущий файл:
+            </span>
+
+            <strong id="currentFile">
+                {{ job.current_file or '-' }}
+            </strong>
+        </div>
+
+
+        <div
+            id="errorBox"
+            class="alert alert-danger mt-3 d-none"
+        ></div>
+
+
+        <div
+            id="completedBox"
+            class="alert alert-success mt-3 d-none"
+        >
+            <i class="bi bi-check-circle-fill"></i>
+
+            Поиск завершён.
+
+            <a
+                href="/online-search/results/{{ job_id }}"
+                class="alert-link ms-2"
+            >
+                Открыть итоговую страницу
+            </a>
+        </div>
+
     </div>
+
+
+    <!-- LIVE RESULTS -->
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <div>
+            <h3 class="mb-1">
+                <i class="bi bi-search"></i>
+                Найденные результаты
+            </h3>
+
+            <div class="text-secondary small">
+                Можно просматривать, пока Whisper продолжает работу
+            </div>
+        </div>
+
+        <span class="badge text-bg-primary fs-6">
+            <span id="liveResultsCount">
+                {{ job.results|length if job.results else 0 }}
+            </span>
+            файлов
+        </span>
+
+    </div>
+
+
+    <!-- ПОКА НИЧЕГО НЕ НАЙДЕНО -->
+
+    <div
+        id="emptyResults"
+        class="panel-card text-center py-5 {% if job.results %}d-none{% endif %}"
+    >
+        <i
+            class="bi bi-hourglass-split text-secondary"
+            style="font-size: 40px;"
+        ></i>
+
+        <h5 class="mt-3">
+            Пока совпадений нет
+        </h5>
+
+        <p class="text-secondary mb-0">
+            Whisper продолжает обработку аудиофайлов.
+        </p>
+    </div>
+
+
+    <!-- СЮДА БУДУТ ДОБАВЛЯТЬСЯ РЕЗУЛЬТАТЫ -->
+
+    <div id="liveResultsContainer"></div>
+
 </div>
+
+
 <script>
+
 const jobId = {{ job_id|tojson }};
-async function refreshOnlineStatus() {
-    try {
-        const response = await fetch(`/api/online-search/${jobId}`, {cache: "no-store"});
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Ошибка получения статуса");
 
-        document.getElementById("statusText").textContent = data.status;
-        document.getElementById("processed").textContent = data.processed_files;
-        document.getElementById("total").textContent = data.total_files;
-        document.getElementById("successful").textContent = data.successful_files;
-        document.getElementById("failed").textContent = data.failed_files;
-        document.getElementById("currentFile").textContent = data.current_file || "-";
-        document.getElementById("resultsCount").textContent = data.results_count;
-        const bar = document.getElementById("progressBar");
-        bar.style.width = `${data.percent}%`;
-        bar.textContent = `${data.percent}%`;
 
-        if (data.status === "completed" || data.status === "error") {
-            window.location.href = `/online-search/results/${jobId}`;
-            return;
+/*
+    Храним уже показанные файлы.
+
+    Иначе API каждые 1.5 секунды будет возвращать
+    весь массив результатов, и карточки начнут
+    дублироваться.
+*/
+const renderedResults = new Set();
+
+
+// -----------------------------------------------------
+// Безопасный HTML
+// -----------------------------------------------------
+
+function escapeHtml(value) {
+
+    const element =
+        document.createElement("div");
+
+    element.textContent =
+        value === undefined ||
+        value === null
+            ? ""
+            : String(value);
+
+    return element.innerHTML;
+}
+
+
+// -----------------------------------------------------
+// Создание карточки результата
+// -----------------------------------------------------
+
+function createResultCard(result, number) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "live-result-card";
+
+
+    // -----------------------------------------------
+    // Ключевые слова
+    // -----------------------------------------------
+
+    const keywordsHtml =
+        (result.found_keywords || [])
+        .map(keyword => {
+
+            let count = "";
+
+            if (
+                result.counts &&
+                result.counts[keyword]
+            ) {
+                count =
+                    ` (${result.counts[keyword]})`;
+            }
+
+            return `
+                <span class="keyword-badge">
+
+                    <i class="bi bi-tag"></i>
+
+                    ${escapeHtml(keyword)}
+
+                    ${count}
+
+                </span>
+            `;
+        })
+        .join("");
+
+
+    // -----------------------------------------------
+    // Сегменты
+    // -----------------------------------------------
+
+    const segmentsHtml =
+        (result.segments || [])
+        .map(segment => {
+
+            const keywords =
+                (segment.keywords || [])
+                .map(word => escapeHtml(word))
+                .join(", ");
+
+            return `
+                <div class="segment-box">
+
+                    <div class="segment-time">
+
+                        <i class="bi bi-clock"></i>
+
+                        ${escapeHtml(segment.start_label)}
+
+                        —
+
+                        ${escapeHtml(segment.end_label)}
+
+                    </div>
+
+                    <div class="mt-1">
+                        ${escapeHtml(segment.text)}
+                    </div>
+
+                    ${
+                        keywords
+                        ? `
+                            <div
+                                class="small text-secondary mt-2"
+                            >
+                                Найдено:
+
+                                <strong>
+                                    ${keywords}
+                                </strong>
+                            </div>
+                        `
+                        : ""
+                    }
+
+                </div>
+            `;
+        })
+        .join("");
+
+
+    // -----------------------------------------------
+    // Карточка
+    // -----------------------------------------------
+
+    card.innerHTML = `
+
+        <div class="d-flex gap-3">
+
+            <div class="result-counter">
+                ${number}
+            </div>
+
+            <div class="flex-grow-1">
+
+                <div
+                    class="d-flex flex-wrap
+                           justify-content-between
+                           align-items-start
+                           gap-2"
+                >
+
+                    <div>
+
+                        <h5 class="mb-1">
+
+                            <i class="bi bi-file-earmark-music"></i>
+
+                            ${escapeHtml(result.file_name)}
+
+                        </h5>
+
+                        <div class="file-path">
+                            ${escapeHtml(result.file_path)}
+                        </div>
+
+                    </div>
+
+
+                    <span class="badge text-bg-success">
+
+                        ${result.total_matches || 0}
+
+                        совпадений
+
+                    </span>
+
+                </div>
+
+
+                <div class="row mt-3 small">
+
+                    <div class="col-md-4">
+
+                        <span class="text-secondary">
+                            Язык:
+                        </span>
+
+                        <strong>
+                            ${escapeHtml(result.language || "-")}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <span class="text-secondary">
+                            Длительность:
+                        </span>
+
+                        <strong>
+                            ${escapeHtml(result.duration || "-")}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="col-md-4">
+
+                        <span class="text-secondary">
+                            Ключевых слов:
+                        </span>
+
+                        <strong>
+                            ${
+                                (
+                                    result.found_keywords
+                                    || []
+                                ).length
+                            }
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="mt-3">
+                    ${keywordsHtml}
+                </div>
+
+
+                ${
+                    segmentsHtml
+                    ? `
+                        <div class="mt-3">
+
+                            <div class="fw-semibold mb-2">
+
+                                <i class="bi bi-chat-left-text"></i>
+
+                                Найденные фрагменты
+
+                            </div>
+
+                            ${segmentsHtml}
+
+                        </div>
+                    `
+                    : ""
+                }
+
+            </div>
+
+        </div>
+    `;
+
+
+    return card;
+}
+
+
+// -----------------------------------------------------
+// Добавление новых результатов
+// -----------------------------------------------------
+
+function renderResults(results) {
+
+    if (!Array.isArray(results)) {
+        return;
+    }
+
+
+    const container =
+        document.getElementById(
+            "liveResultsContainer"
+        );
+
+
+    for (const result of results) {
+
+        /*
+            file_path должен быть уникальным.
+            Если его нет — используем file_name.
+        */
+
+        const key =
+            result.file_path ||
+            result.file_name;
+
+
+        if (!key) {
+            continue;
         }
-        window.setTimeout(refreshOnlineStatus, 1500);
-    } catch (error) {
-        const box = document.getElementById("errorBox");
-        box.textContent = error.message;
-        box.classList.remove("d-none");
+
+
+        /*
+            Этот файл уже показан.
+        */
+
+        if (
+            renderedResults.has(key)
+        ) {
+            continue;
+        }
+
+
+        /*
+            Добавляем в список показанных.
+        */
+
+        renderedResults.add(key);
+
+
+        /*
+            Создаём карточку.
+        */
+
+        const card =
+            createResultCard(
+                result,
+                renderedResults.size
+            );
+
+
+        /*
+            appendChild — новые результаты
+            идут вниз.
+
+            Если хотите новые сверху:
+            container.prepend(card)
+        */
+
+        container.appendChild(card);
+    }
+
+
+    // -----------------------------------------------
+    // Счётчик
+    // -----------------------------------------------
+
+    document.getElementById(
+        "liveResultsCount"
+    ).textContent =
+        renderedResults.size;
+
+
+    // -----------------------------------------------
+    // Убираем заглушку
+    // -----------------------------------------------
+
+    if (
+        renderedResults.size > 0
+    ) {
+
+        document.getElementById(
+            "emptyResults"
+        ).classList.add(
+            "d-none"
+        );
     }
 }
+
+
+// -----------------------------------------------------
+// Обновление состояния
+// -----------------------------------------------------
+
+async function refreshOnlineStatus() {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/online-search/${jobId}`,
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Ошибка получения статуса"
+            );
+        }
+
+
+        // -----------------------------------------------
+        // Статус
+        // -----------------------------------------------
+
+        document.getElementById(
+            "statusText"
+        ).textContent =
+            data.status;
+
+
+        // -----------------------------------------------
+        // Прогресс
+        // -----------------------------------------------
+
+        document.getElementById(
+            "processed"
+        ).textContent =
+            data.processed_files;
+
+
+        document.getElementById(
+            "total"
+        ).textContent =
+            data.total_files;
+
+
+        document.getElementById(
+            "successful"
+        ).textContent =
+            data.successful_files;
+
+
+        document.getElementById(
+            "failed"
+        ).textContent =
+            data.failed_files;
+
+
+        document.getElementById(
+            "currentFile"
+        ).textContent =
+            data.current_file || "-";
+
+
+        document.getElementById(
+            "resultsCount"
+        ).textContent =
+            data.results_count || 0;
+
+
+        // -----------------------------------------------
+        // Progress Bar
+        // -----------------------------------------------
+
+        const bar =
+            document.getElementById(
+                "progressBar"
+            );
+
+
+        bar.style.width =
+            `${data.percent}%`;
+
+
+        bar.textContent =
+            `${data.percent}%`;
+
+
+        // -----------------------------------------------
+        // ВАЖНО:
+        // отображаем уже готовые результаты
+        // -----------------------------------------------
+
+        renderResults(
+            data.results || []
+        );
+
+
+        // -----------------------------------------------
+        // Завершено
+        // -----------------------------------------------
+
+        if (
+            data.status ===
+            "completed"
+        ) {
+
+            bar.classList.remove(
+                "progress-bar-animated"
+            );
+
+
+            document.getElementById(
+                "currentFile"
+            ).textContent =
+                "-";
+
+
+            document.getElementById(
+                "completedBox"
+            ).classList.remove(
+                "d-none"
+            );
+
+
+            /*
+                НЕ делаем автоматический переход.
+
+                Пользователь может продолжать
+                просматривать найденные результаты.
+            */
+
+            return;
+        }
+
+
+        // -----------------------------------------------
+        // Ошибка
+        // -----------------------------------------------
+
+        if (
+            data.status ===
+            "error"
+        ) {
+
+            bar.classList.remove(
+                "progress-bar-animated"
+            );
+
+
+            const box =
+                document.getElementById(
+                    "errorBox"
+                );
+
+
+            box.textContent =
+                data.error ||
+                "Ошибка онлайн-поиска";
+
+
+            box.classList.remove(
+                "d-none"
+            );
+
+
+            return;
+        }
+
+
+        // -----------------------------------------------
+        // Следующая проверка через 1 секунду
+        // -----------------------------------------------
+
+        window.setTimeout(
+            refreshOnlineStatus,
+            1000
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Ошибка API:",
+            error
+        );
+
+
+        const box =
+            document.getElementById(
+                "errorBox"
+            );
+
+
+        box.textContent =
+            error.message;
+
+
+        box.classList.remove(
+            "d-none"
+        );
+
+
+        /*
+            Не останавливаем polling полностью.
+            Возможно это временная ошибка сети.
+        */
+
+        window.setTimeout(
+            refreshOnlineStatus,
+            3000
+        );
+    }
+}
+
+
+// -----------------------------------------------------
+// START
+// -----------------------------------------------------
+
 refreshOnlineStatus();
+
 </script>
+
 </body>
 </html>

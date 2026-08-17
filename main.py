@@ -429,11 +429,18 @@ async def online_search_status(
     user: Optional[User] = Depends(get_current_user),
 ):
     if not user:
-        return JSONResponse({"error": "Не авторизован"}, status_code=401)
+        return JSONResponse(
+            {"error": "Не авторизован"},
+            status_code=401,
+        )
 
     job = get_online_job(job_id)
+
     if not job:
-        return JSONResponse({"error": "Задача не найдена"}, status_code=404)
+        return JSONResponse(
+            {"error": "Задача не найдена"},
+            status_code=404,
+        )
 
     return {
         "status": job["status"],
@@ -444,9 +451,16 @@ async def online_search_status(
         "current_file": job["current_file"],
         "percent": job["percent"],
         "error": job["error"],
-        "results_count": len(job["results"]),
-    }
 
+        # Количество уже найденных файлов
+        "results_count": len(job["results"]),
+
+        # Уже готовые результаты
+        "results": job["results"],
+
+        # Ошибки отдельных файлов
+        "file_errors": job.get("file_errors", []),
+    }
 
 @app.get("/online-search/results/{job_id}", response_class=HTMLResponse)
 async def online_search_results_page(
