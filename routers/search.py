@@ -1549,7 +1549,7 @@ async def api_search_voice(
     start: float = Form(...),
     end: float = Form(...),
     folder_path: str = Form(...),
-    threshold: float = Form(75.0),
+    threshold: float = Form(34.0),
     user=Depends(get_current_user),
 ):
   if not user:

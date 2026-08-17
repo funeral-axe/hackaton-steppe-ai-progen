@@ -26,6 +26,12 @@ print(f"🚀 Нейросеть SpeechBrain настроена на устрой
 # --- ПАТЧ СОВМЕСТИМОСТИ ДЛЯ TORCH И SPEECHBRAIN ---
 
 from services.speaker_model import get_speaker_model
+from services.speaker_scoring import (
+    clamp_score,
+    is_match,
+    legacy_percent_to_score,
+    score_to_legacy_percent,
+)
 
 # Глобальные переменные моделей для воркеров многопроцессорности
 _worker_speaker_model = None
@@ -207,7 +213,7 @@ def process_candidate_worker(args):
           "__CANCELLED__",
       )
 
-    max_file_similarity = 0.0
+    max_file_score = -1.0
     best_start_seconds = 0.0
     best_end_seconds = 0.0
 
@@ -277,9 +283,8 @@ def process_candidate_worker(args):
           dim=-1,
       ).item()
 
-      max_file_similarity = round(
-          max(0.0, cos_sim) * 100,
-          2,
+      max_file_score = clamp_score(
+          cos_sim
       )
 
       best_start_seconds = 0.0
@@ -337,13 +342,12 @@ def process_candidate_worker(args):
             dim=-1,
         ).item()
 
-        similarity = round(
-            max(0.0, cos_sim) * 100,
-            2,
+        segment_score = clamp_score(
+            cos_sim
         )
 
-        if similarity > max_file_similarity:
-          max_file_similarity = similarity
+        if segment_score > max_file_score:
+          max_file_score = segment_score
 
           best_start_seconds = round(
               start / sr,
@@ -355,14 +359,29 @@ def process_candidate_worker(args):
               3,
           )
 
-        if max_file_similarity >= 95.0:
+        if max_file_score >= 0.95:
           break
 
-    matched = max_file_similarity >= threshold
+    threshold_score = (
+        legacy_percent_to_score(
+            threshold
+        )
+    )
+
+    matched = is_match(
+        max_file_score,
+        threshold_score,
+    )
+
+    display_similarity = (
+        score_to_legacy_percent(
+            max_file_score
+        )
+    )
 
     return (
         candidate_path,
-        max_file_similarity,
+        display_similarity,
         matched,
         best_start_seconds,
         best_end_seconds,
@@ -401,7 +420,7 @@ def process_candidate_worker(args):
 def run_background_voice_search(
     file_path_or_data,
     folder_path,
-    threshold=75.0,
+    threshold=34.0,
     num_processes=2,
     shared_counter=None,
     lock=None,
