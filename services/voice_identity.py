@@ -6,6 +6,11 @@ from sqlalchemy import text
 
 from database import SessionLocal
 from services.speaker_model import get_speaker_model
+from services.speaker_scoring import (
+    clamp_score,
+    is_match,
+    score_gap as calculate_score_gap,
+)
 from services.voice_engine import process_audio_file
 
 
@@ -186,16 +191,10 @@ def identify_voice_owner(
             row["similarity"] or 0.0
         )
 
-        similarity = max(
-            -1.0,
-            min(
-                1.0,
-                similarity,
-            ),
-        )
-
         similarity_score = round(
-            similarity,
+            clamp_score(
+                similarity
+            ),
             4,
         )
 
@@ -307,8 +306,10 @@ def identify_voice_owner(
     above_threshold = [
         candidate
         for candidate in candidates
-        if candidate["similarity"]
-        >= threshold
+        if is_match(
+            candidate["similarity"],
+            threshold,
+        )
     ]
 
     best_candidate = (
@@ -341,10 +342,11 @@ def identify_voice_owner(
     if len(above_threshold) >= 2:
         second = above_threshold[1]
 
-        score_gap = round(
-            best["similarity"]
-            - second["similarity"],
-            4,
+        score_gap = (
+            calculate_score_gap(
+                best["similarity"],
+                second["similarity"],
+            )
         )
 
     else:
