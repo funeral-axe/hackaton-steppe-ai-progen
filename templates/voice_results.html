@@ -255,7 +255,7 @@
 
             <div class="vr-stat">
                 <div class="vr-stat-label">
-                    Порог поиска
+                    Порог поиска в аудио
                 </div>
 
                 <div class="vr-stat-value">
@@ -266,7 +266,7 @@
 
             <div class="vr-stat">
                 <div class="vr-stat-label">
-                    Лучшее сходство
+                    Сходство найденного фрагмента
                 </div>
 
                 <div class="vr-stat-value">
@@ -279,6 +279,404 @@
             </div>
 
         </section>
+
+
+        {% set identity = result.get('identity') if result else None %}
+
+        {% if identity %}
+
+            {% set state = namespace(has_conflict=false) %}
+
+            {% for candidate in identity_candidates %}
+
+                {% if candidate.data_conflict %}
+                    {% set state.has_conflict = true %}
+                {% endif %}
+
+            {% endfor %}
+
+            {% set needs_review =
+                identity.status == 'ambiguous'
+                or state.has_conflict
+            %}
+
+
+            <section class="vr-identity {% if needs_review %}ambiguous{% elif identity.status == 'identified' %}identified{% endif %}">
+
+                <div class="vr-identity-header">
+
+                    <div class="vr-identity-main">
+
+                        <div class="vr-identity-icon">
+                            &#128100;
+                        </div>
+
+                        <div>
+
+                            <div class="vr-identity-eyebrow">
+                                Сверка с голосовой базой
+                            </div>
+
+
+                            {% if needs_review %}
+
+                                <div class="vr-identity-name">
+                                    Точного владельца голоса определить нельзя
+                                </div>
+
+                                <div class="vr-identity-note">
+
+                                    {% if state.has_conflict %}
+
+                                        Голос найден в базе, но в данных о владельце есть противоречия.
+                                        Ниже показаны все подходящие варианты.
+
+                                    {% else %}
+
+                                        В голосовой базе найдено несколько похожих профилей.
+                                        Для точного вывода сравните эталонные записи.
+
+                                    {% endif %}
+
+                                </div>
+
+
+                            {% elif identity.status == 'identified' %}
+
+                                <div class="vr-identity-name">
+                                    Вероятный владелец голоса
+                                </div>
+
+                                <div class="vr-identity-person">
+                                    {{ identity.full_name or 'Профиль без ФИО' }}
+                                </div>
+
+                                <div class="vr-identity-note">
+                                    Один из профилей в базе заметно лучше совпадает с искомым голосом.
+                                </div>
+
+
+                            {% elif identity.status == 'no_profiles' %}
+
+                                <div class="vr-identity-name">
+                                    Голосовая база пока пуста
+                                </div>
+
+                                <div class="vr-identity-note">
+                                    В базе нет эталонных записей для сравнения.
+                                </div>
+
+
+                            {% else %}
+
+                                <div class="vr-identity-name">
+                                    Владелец голоса не найден
+                                </div>
+
+                                <div class="vr-identity-note">
+                                    Ни один профиль в голосовой базе не дал достаточного совпадения.
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="vr-user-status">
+
+                        {% if needs_review %}
+                            <span class="vr-user-status-badge warning">
+                                Нужна проверка
+                            </span>
+
+                        {% elif identity.status == 'identified' %}
+                            <span class="vr-user-status-badge success">
+                                Есть вероятный кандидат
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                {% if identity_candidates %}
+
+                    <div class="vr-candidates">
+
+                        <div class="vr-candidates-heading">
+                            Кому может принадлежать голос
+                        </div>
+
+                        <div class="vr-candidate-intro">
+                            Профили расположены от более похожего голоса к менее похожему.
+                            Вы можете прослушать каждый эталон.
+                        </div>
+
+
+                        {% for candidate in identity_candidates %}
+
+                            {% set candidate_delta =
+                                candidate.similarity
+                                - identity.threshold
+                            %}
+
+
+                            <article class="vr-candidate {% if loop.first %}primary{% endif %}">
+
+                                <div class="vr-candidate-top">
+
+                                    <div class="vr-candidate-main">
+
+                                        <div class="vr-candidate-rank">
+                                            Вариант {{ loop.index }}
+                                        </div>
+
+
+                                        <div class="vr-candidate-name">
+
+                                            {% if candidate.data_conflict %}
+                                                Данные профиля требуют проверки
+                                            {% else %}
+                                                {{ candidate.full_name or 'Профиль без ФИО' }}
+                                            {% endif %}
+
+                                        </div>
+
+
+                                        <div class="vr-candidate-meta">
+
+                                            <span>
+                                                ИИН:
+                                                {{ candidate.un or '—' }}
+                                            </span>
+
+                                            {% if candidate.phone %}
+
+                                                <span>
+                                                    Телефон:
+                                                    {{ candidate.phone }}
+                                                </span>
+
+                                            {% endif %}
+
+                                        </div>
+
+
+                                        {% if candidate.data_conflict %}
+
+                                            <div class="vr-profile-conflict">
+
+                                                <div class="vr-profile-conflict-title">
+                                                    Для этого ИИН в базе указаны разные ФИО:
+                                                </div>
+
+                                                {% for profile in candidate.profile_variants %}
+
+                                                    <div class="vr-profile-conflict-item">
+                                                        {{ profile.full_name or 'Без ФИО' }}
+                                                    </div>
+
+                                                {% endfor %}
+
+                                                <div class="vr-profile-conflict-help">
+                                                    Эти записи имеют один ИИН, поэтому SonAr не выбирает одно ФИО автоматически.
+                                                </div>
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+
+                                    <div class="vr-match-level">
+
+                                        {% if candidate_delta >= 0.15 %}
+
+                                            <span class="vr-match-level-badge strong">
+                                                Сильное совпадение
+                                            </span>
+
+                                        {% elif candidate_delta >= 0.07 %}
+
+                                            <span class="vr-match-level-badge medium">
+                                                Заметное совпадение
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="vr-match-level-badge possible">
+                                                Возможное совпадение
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                </div>
+
+
+                                {% if candidate.voiceprints %}
+
+                                    <div class="vr-candidate-voiceprints">
+
+                                        <div class="vr-candidate-voiceprints-title">
+                                            Записи голоса из базы
+                                        </div>
+
+
+                                        {% for voiceprint in candidate.voiceprints %}
+
+                                            <div class="vr-reference-row">
+
+                                                <div class="vr-reference-info">
+
+                                                    <div>
+
+                                                        <span class="vr-reference-number">
+                                                            Образец голоса {{ loop.index }}
+                                                        </span>
+
+                                                        {% if voiceprint.full_name %}
+
+                                                            <div class="vr-reference-person">
+                                                                {{ voiceprint.full_name }}
+                                                            </div>
+
+                                                        {% endif %}
+
+                                                    </div>
+
+                                                </div>
+
+
+                                                {% if voiceprint.audio_url %}
+
+                                                    <audio
+                                                        class="vr-reference-audio"
+                                                        controls
+                                                        preload="metadata"
+                                                        src="{{ voiceprint.audio_url }}"
+                                                    ></audio>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        {% endfor %}
+
+                                    </div>
+
+                                {% endif %}
+
+
+                                <details class="vr-tech-details">
+
+                                    <summary>
+                                        Технические данные
+                                    </summary>
+
+                                    <div class="vr-tech-grid">
+
+                                        <div>
+                                            <span>Биометрический score</span>
+                                            <strong>{{ candidate.similarity|round(4) }}</strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Порог</span>
+                                            <strong>{{ identity.threshold|round(4) }}</strong>
+                                        </div>
+
+                                        <div>
+                                            <span>Количество эталонов</span>
+                                            <strong>{{ candidate.voiceprints_count }}</strong>
+                                        </div>
+
+                                    </div>
+
+                                    <p class="vr-tech-note">
+                                        Score — это внутренний показатель сходства голосовых признаков.
+                                        Это не процент вероятности личности.
+                                    </p>
+
+                                </details>
+
+                            </article>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+
+                {% if needs_review %}
+
+                    <div class="vr-ambiguity-note">
+
+                        <strong>
+                            Что делать?
+                        </strong>
+
+                        <span>
+                            Прослушайте образцы голоса и сравните их с найденным фрагментом ниже.
+                            SonAr специально не выбирает одного человека, если результат неоднозначен.
+                        </span>
+
+                    </div>
+
+                {% endif %}
+
+
+                <details class="vr-global-tech">
+
+                    <summary>
+                        Показать техническую информацию
+                    </summary>
+
+                    <div class="vr-tech-grid">
+
+                        <div>
+                            <span>Лучший score</span>
+                            <strong>
+                                {% if identity.similarity is not none %}
+                                    {{ identity.similarity|round(4) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Порог идентификации</span>
+                            <strong>
+                                {{ identity.threshold|round(4) }}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Разница между лучшими</span>
+                            <strong>
+                                {% if identity.score_gap is not none %}
+                                    {{ identity.score_gap|round(4) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </details>
+
+            </section>
+
+        {% endif %}
 
 
         {% macro render_match(match, index, featured=False) %}
@@ -418,7 +816,7 @@
         {% if best_match %}
 
             <h2 class="vr-section-heading">
-                Лучшее совпадение
+                Где найден голос
             </h2>
 
             {{ render_match(best_match, 0, True) }}

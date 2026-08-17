@@ -22,9 +22,10 @@ from fastapi.templating import Jinja2Templates
 from pydub import AudioSegment
 from auth_dependencies import get_current_user
 from auth_permissions import has_role, role_home
-from database import UserRole
+from database import SessionLocal, UserRole, VoicePrint
 from services.progress_manager import progress_manager
 from services.voice_engine import run_background_voice_search
+from services.voice_identity import attach_voice_identity_to_results
 from services.voice_jobs import voice_job_manager
 
 router = APIRouter()
@@ -225,6 +226,40 @@ def background_search_runner(
 
   with lock:
     current_processed = shared_counter.value
+
+  if (
+      job_results_dir
+      and target_wav_path
+      and os.path.isfile(target_wav_path)
+      and search_result["error"] is None
+  ):
+    try:
+      identity = (
+          attach_voice_identity_to_results(
+              results_dir=job_results_dir,
+              audio_path=target_wav_path,
+          )
+      )
+
+      identity_summary = (
+          identity.get(
+              "identity",
+              {},
+          )
+      )
+
+      print(
+          "[VOICE IDENTITY] "
+          f"status={identity_summary.get('status')} "
+          f"similarity={identity_summary.get('similarity')} "
+          f"candidates={identity_summary.get('candidates_count')}"
+      )
+
+    except Exception as e:
+      print(
+          "[VOICE IDENTITY WARNING] "
+          f"{e}"
+      )
 
   if job is not None:
 
@@ -538,6 +573,163 @@ async def browse_results(
       )
 
   # ----------------------------------------------------------
+  # Reference VoicePrint audio for identity candidates.
+  #
+  # The requested VoicePrint ID must be present in the
+  # identity candidates stored for this exact owned job.
+  # ----------------------------------------------------------
+
+  if (
+      len(path_parts) == 3
+      and path_parts[1] == "identity-audio"
+  ):
+
+    try:
+      requested_voiceprint_id = int(
+          path_parts[2]
+      )
+    except (
+        TypeError,
+        ValueError,
+    ):
+      return HTMLResponse(
+          "Invalid VoicePrint ID",
+          status_code=404,
+      )
+
+    metadata_path = os.path.join(
+        job_base_dir,
+        "results.json",
+    )
+
+    if not os.path.isfile(
+        metadata_path
+    ):
+      return HTMLResponse(
+          "Voice result metadata not found",
+          status_code=404,
+      )
+
+    try:
+      with open(
+          metadata_path,
+          "r",
+          encoding="utf-8",
+      ) as handle:
+        identity_result = json.load(
+            handle
+        )
+
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+    ):
+      return HTMLResponse(
+          "Voice result metadata is invalid",
+          status_code=404,
+      )
+
+    allowed_voiceprint_ids = set()
+
+    candidates = identity_result.get(
+        "identity_candidates",
+        [],
+    )
+
+    if isinstance(
+        candidates,
+        list,
+    ):
+      for candidate in candidates:
+
+        if not isinstance(
+            candidate,
+            dict,
+        ):
+          continue
+
+        voiceprints = candidate.get(
+            "voiceprints",
+            [],
+        )
+
+        if not isinstance(
+            voiceprints,
+            list,
+        ):
+          continue
+
+        for voiceprint in voiceprints:
+
+          if not isinstance(
+              voiceprint,
+              dict,
+          ):
+            continue
+
+          voiceprint_id = (
+              voiceprint.get(
+                  "voiceprint_id"
+              )
+          )
+
+          try:
+            allowed_voiceprint_ids.add(
+                int(voiceprint_id)
+            )
+          except (
+              TypeError,
+              ValueError,
+          ):
+            pass
+
+    if (
+        requested_voiceprint_id
+        not in allowed_voiceprint_ids
+    ):
+      return HTMLResponse(
+          "VoicePrint is not part of this result",
+          status_code=403,
+      )
+
+    db = SessionLocal()
+
+    try:
+      voiceprint_record = db.get(
+          VoicePrint,
+          requested_voiceprint_id,
+      )
+
+      if voiceprint_record is None:
+        return HTMLResponse(
+            "VoicePrint not found",
+            status_code=404,
+        )
+
+      reference_audio_path = (
+          os.path.abspath(
+              voiceprint_record.audio_path
+          )
+      )
+
+    finally:
+      db.close()
+
+    if not os.path.isfile(
+        reference_audio_path
+    ):
+      return HTMLResponse(
+          "Reference audio not found",
+          status_code=404,
+      )
+
+    return FileResponse(
+        path=reference_audio_path,
+    )
+
+
+  # ----------------------------------------------------------
   # Human-readable result page for this job.
   # Nested paths continue through the secured file-serving
   # logic below.
@@ -581,6 +773,80 @@ async def browse_results(
             "[VOICE RESULTS ERROR] "
             f"{metadata_path}: {exc}"
         )
+
+    identity_data = (
+        result_data.get(
+            "identity"
+        )
+        if isinstance(
+            result_data,
+            dict,
+        )
+        else None
+    )
+
+    identity_candidates = (
+        result_data.get(
+            "identity_candidates",
+            [],
+        )
+        if isinstance(
+            result_data,
+            dict,
+        )
+        else []
+    )
+
+    if not isinstance(
+        identity_candidates,
+        list,
+    ):
+      identity_candidates = []
+
+    for candidate in identity_candidates:
+
+      if not isinstance(
+          candidate,
+          dict,
+      ):
+        continue
+
+      voiceprints = candidate.get(
+          "voiceprints",
+          [],
+      )
+
+      if not isinstance(
+          voiceprints,
+          list,
+      ):
+        candidate[
+            "voiceprints"
+        ] = []
+        continue
+
+      for voiceprint in voiceprints:
+
+        if not isinstance(
+            voiceprint,
+            dict,
+        ):
+          continue
+
+        voiceprint_id = (
+            voiceprint.get(
+                "voiceprint_id"
+            )
+        )
+
+        if not voiceprint_id:
+          continue
+
+        voiceprint["audio_url"] = (
+            f"/results/{job_folder}/"
+            f"identity-audio/{voiceprint_id}"
+        )
+
 
     raw_matches = (
         result_data.get(
@@ -740,6 +1006,7 @@ async def browse_results(
             "user": user,
             "job": snapshot,
             "result": result_data,
+            "identity_candidates": identity_candidates,
             "result_ready": result_ready,
             "result_error": result_error,
             "matches": matches,
@@ -988,7 +1255,7 @@ async def api_check_folder(
     )
   if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
     return {"error": "Папка не существует"}
-  audio_extensions = (".mp3", ".wav", ".opus", ".m4a", ".flac", ".aac")
+  audio_extensions = (".mp3", ".wav", ".opus", ".m4a", ".flac", ".aac", ".ogg")
   count = sum(
       1
       for r, d, files in os.walk(folder_path)
