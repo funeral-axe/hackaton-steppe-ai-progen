@@ -15,6 +15,7 @@ from audio_processor import parse_keywords, run_index_job, search_audio
 from services.word_search import (
     create_online_job,
     get_online_job,
+    parse_keywords,
     run_online_search,
 )
 from database import (
