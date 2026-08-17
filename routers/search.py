@@ -67,6 +67,7 @@ def background_search_runner(
       ".m4a",
       ".flac",
       ".aac",
+      ".ogg",
   )
 
   all_files = []
