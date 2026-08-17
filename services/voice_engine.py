@@ -13,6 +13,9 @@ import torch
 import torch.nn.functional as F
 from services.speaker_model import DEVICE
 
+import json
+import hashlib
+
 # --- СТРОГИЙ ОФФЛАЙН РЕЖИМ ---
 # Запрещаем библиотекам любые сетевые запросы (работаем только с локальным кэшем)
 
@@ -158,6 +161,8 @@ def process_candidate_worker(args):
           candidate_path,
           0.0,
           False,
+          0.0,
+          0.0,
           "__CANCELLED__",
       )
 
@@ -172,6 +177,8 @@ def process_candidate_worker(args):
               candidate_path,
               0.0,
               False,
+              0.0,
+              0.0,
               "__CANCELLED__",
           )
 
@@ -195,10 +202,14 @@ def process_candidate_worker(args):
           candidate_path,
           0.0,
           False,
+          0.0,
+          0.0,
           "__CANCELLED__",
       )
 
     max_file_similarity = 0.0
+    best_start_seconds = 0.0
+    best_end_seconds = 0.0
 
     target_embedding = torch.as_tensor(
         target_embedding_np,
@@ -237,6 +248,8 @@ def process_candidate_worker(args):
             candidate_path,
             0.0,
             False,
+            0.0,
+            0.0,
             "__CANCELLED__",
         )
 
@@ -269,6 +282,12 @@ def process_candidate_worker(args):
           2,
       )
 
+      best_start_seconds = 0.0
+      best_end_seconds = round(
+          total_samples / sr,
+          3,
+      )
+
     else:
       for start in range(
           0,
@@ -285,6 +304,8 @@ def process_candidate_worker(args):
               candidate_path,
               0.0,
               False,
+              0.0,
+              0.0,
               "__CANCELLED__",
           )
 
@@ -324,6 +345,16 @@ def process_candidate_worker(args):
         if similarity > max_file_similarity:
           max_file_similarity = similarity
 
+          best_start_seconds = round(
+              start / sr,
+              3,
+          )
+
+          best_end_seconds = round(
+              end / sr,
+              3,
+          )
+
         if max_file_similarity >= 95.0:
           break
 
@@ -333,6 +364,8 @@ def process_candidate_worker(args):
         candidate_path,
         max_file_similarity,
         matched,
+        best_start_seconds,
+        best_end_seconds,
         None,
     )
 
@@ -341,6 +374,8 @@ def process_candidate_worker(args):
         candidate_path,
         0.0,
         False,
+        0.0,
+        0.0,
         str(e),
     )
 
@@ -544,6 +579,8 @@ def run_background_voice_search(
               candidate_path,
               score,
               matched,
+              match_start,
+              match_end,
               err,
           ) in pool.imap_unordered(
               process_candidate_worker,
@@ -565,9 +602,33 @@ def run_background_voice_search(
               )
 
             elif matched:
-              dest_path = os.path.join(
+              audio_dir = os.path.join(
                   session_dir,
-                  file_name,
+                  "audio",
+              )
+
+              os.makedirs(
+                  audio_dir,
+                  exist_ok=True,
+              )
+
+              source_path = os.path.abspath(
+                  candidate_path
+              )
+
+              source_hash = hashlib.sha1(
+                  source_path.encode(
+                      "utf-8"
+                  )
+              ).hexdigest()[:12]
+
+              stored_name = (
+                  f"{source_hash}_{file_name}"
+              )
+
+              dest_path = os.path.join(
+                  audio_dir,
+                  stored_name,
               )
 
               shutil.copy2(
@@ -575,13 +636,41 @@ def run_background_voice_search(
                   dest_path,
               )
 
+              match_start = round(
+                  float(match_start),
+                  3,
+              )
+
+              match_end = round(
+                  float(match_end),
+                  3,
+              )
+
+              match_duration = round(
+                  max(
+                      0.0,
+                      match_end - match_start,
+                  ),
+                  3,
+              )
+
               matched_files.append(
-                  (file_name, score)
+                  {
+                      "file_name": file_name,
+                      "source_path": source_path,
+                      "stored_name": stored_name,
+                      "similarity": float(score),
+                      "start": match_start,
+                      "end": match_end,
+                      "duration": match_duration,
+                  }
               )
 
               print(
                   f"Match found: {file_name} "
-                  f"({score}%)"
+                  f"({score}%) "
+                  f"at {match_start:.3f}-"
+                  f"{match_end:.3f}s"
               )
 
             if (
@@ -638,11 +727,69 @@ def run_background_voice_search(
           f"Matches: {len(matched_files)}\n\n"
       )
 
-      for fname, score in matched_files:
+      for match in sorted(
+          matched_files,
+          key=lambda item: item["similarity"],
+          reverse=True,
+      ):
         f.write(
-            f"- {fname} "
-            f"(Similarity: {score}%)\n"
+            f"- {match['file_name']} "
+            f"(Similarity: "
+            f"{match['similarity']}%, "
+            f"Time: "
+            f"{match['start']:.3f}-"
+            f"{match['end']:.3f}s)\n"
         )
+
+    finished_at = datetime.now()
+
+    ordered_matches = sorted(
+        matched_files,
+        key=lambda item: item["similarity"],
+        reverse=True,
+    )
+
+    result_metadata = {
+        "version": 1,
+        "status": (
+            "cancelled"
+            if cancelled
+            else "completed"
+        ),
+        "search_folder": os.path.abspath(
+            folder_path
+        ),
+        "threshold": float(threshold),
+        "matches_count": len(
+            ordered_matches
+        ),
+        "matches": ordered_matches,
+        "finished_at": (
+            finished_at.isoformat()
+        ),
+    }
+
+    results_json_path = os.path.join(
+        session_dir,
+        "results.json",
+    )
+
+    with open(
+        results_json_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+      json.dump(
+          result_metadata,
+          f,
+          ensure_ascii=False,
+          indent=2,
+      )
+
+    print(
+        "Structured result metadata saved: "
+        f"{results_json_path}"
+    )
 
     if cancelled:
       print(
