@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Результаты голосового поиска — SonAr</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/sonar-tokens.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/sonar-base.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/sonar-components.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/sonar-layout.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/sonar-voice-results.css') }}"
+    >
+</head>
+
+<body class="voice-results-page">
+
+<header class="vr-topbar">
+
+    <a
+        href="/user"
+        class="vr-brand"
+    >
+        <span class="vr-brand-mark">◀▶</span>
+
+        <span>
+            <span class="vr-brand-name">SonAr</span>
+            <span class="vr-brand-note">
+                Система поиска и анализа
+            </span>
+        </span>
+    </a>
+
+    <div class="vr-account">
+
+        <div class="vr-account-avatar">
+            ♙
+        </div>
+
+        <div class="vr-account-copy">
+            <div class="vr-account-role">
+                Пользователь
+            </div>
+
+            <div class="vr-account-name">
+                {{ user.login }}
+            </div>
+        </div>
+
+        <a
+            class="vr-logout"
+            href="/logout"
+        >
+            ↪
+            <span>Выйти</span>
+        </a>
+
+    </div>
+
+</header>
+
+
+<main class="vr-shell">
+
+    <a
+        class="vr-back"
+        href="/voice_search"
+    >
+        ← Вернуться к голосовому поиску
+    </a>
+
+
+    <div class="vr-heading">
+
+        <div>
+            <h1>
+                Результаты поиска по голосу
+            </h1>
+
+            <p>
+                Здесь показаны записи, в которых SonAr обнаружил
+                голос, похожий на выбранный образец.
+                Для каждого совпадения указано точное место
+                в аудиозаписи.
+            </p>
+        </div>
+
+        <a
+            class="vr-new-search"
+            href="/voice_search"
+        >
+            ＋ Новый поиск
+        </a>
+
+    </div>
+
+
+    {% if result_error %}
+
+        <section class="vr-result-banner error">
+
+            <div class="vr-result-icon">
+                !
+            </div>
+
+            <div>
+                <div class="vr-result-title">
+                    Не удалось открыть результат
+                </div>
+
+                <div class="vr-result-copy">
+                    {{ result_error }}
+                </div>
+            </div>
+
+        </section>
+
+    {% elif not result_ready %}
+
+        <section class="vr-result-banner neutral">
+
+            <div class="vr-result-icon">
+                …
+            </div>
+
+            <div>
+                <div class="vr-result-title">
+                    Результат ещё формируется
+                </div>
+
+                <div class="vr-result-copy">
+                    Поиск ещё не подготовил итоговые данные.
+                    Вернитесь к текущей задаче и дождитесь завершения.
+                </div>
+            </div>
+
+        </section>
+
+    {% else %}
+
+        {% if result.status == 'cancelled' %}
+
+            <section class="vr-result-banner warning">
+
+                <div class="vr-result-icon">
+                    ■
+                </div>
+
+                <div>
+                    <div class="vr-result-title">
+                        Поиск был остановлен
+                    </div>
+
+                    <div class="vr-result-copy">
+                        Ниже показаны совпадения,
+                        которые SonAr успел обнаружить до остановки.
+                    </div>
+                </div>
+
+            </section>
+
+        {% elif matches %}
+
+            <section class="vr-result-banner">
+
+                <div class="vr-result-icon">
+                    ✓
+                </div>
+
+                <div>
+                    <div class="vr-result-title">
+                        Голос найден
+                    </div>
+
+                    <div class="vr-result-copy">
+                        Найдено совпадений:
+                        <strong>{{ matches|length }}</strong>.
+                        Сначала показан результат
+                        с наибольшим сходством.
+                    </div>
+                </div>
+
+            </section>
+
+        {% else %}
+
+            <section class="vr-result-banner neutral">
+
+                <div class="vr-result-icon">
+                    —
+                </div>
+
+                <div>
+                    <div class="vr-result-title">
+                        Совпадений не найдено
+                    </div>
+
+                    <div class="vr-result-copy">
+                        Ни одна проверенная запись
+                        не превысила установленный порог сходства.
+                    </div>
+                </div>
+
+            </section>
+
+        {% endif %}
+
+
+        <section class="vr-stats">
+
+            <div class="vr-stat">
+                <div class="vr-stat-label">
+                    Найдено совпадений
+                </div>
+
+                <div class="vr-stat-value">
+                    {{ matches|length }}
+                </div>
+            </div>
+
+
+            <div class="vr-stat">
+                <div class="vr-stat-label">
+                    Проверено записей
+                </div>
+
+                <div class="vr-stat-value">
+                    {{ job.processed }} из {{ job.total }}
+                </div>
+            </div>
+
+
+            <div class="vr-stat">
+                <div class="vr-stat-label">
+                    Порог поиска
+                </div>
+
+                <div class="vr-stat-value">
+                    {{ result.threshold|round(1) }}%
+                </div>
+            </div>
+
+
+            <div class="vr-stat">
+                <div class="vr-stat-label">
+                    Лучшее сходство
+                </div>
+
+                <div class="vr-stat-value">
+                    {% if best_match %}
+                        {{ best_match.similarity|round(2) }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+            </div>
+
+        </section>
+
+
+        {% macro render_match(match, index, featured=False) %}
+
+            <article
+                class="vr-match {% if featured %}featured{% endif %}"
+            >
+
+                <div class="vr-match-top">
+
+                    <div>
+
+                        <div class="vr-match-kicker">
+                            {% if featured %}
+                                Лучшее совпадение
+                            {% else %}
+                                Совпадение № {{ index + 1 }}
+                            {% endif %}
+                        </div>
+
+                        <div class="vr-match-name">
+                            {{ match.file_name }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="vr-score">
+
+                        <div class="vr-score-value">
+                            {{ match.similarity|round(2) }}%
+                        </div>
+
+                        <div class="vr-score-label">
+
+                            {% if match.similarity >= 90 %}
+                                Очень высокое сходство
+                            {% elif match.similarity >= 80 %}
+                                Высокое сходство
+                            {% else %}
+                                Выше установленного порога
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="vr-match-body">
+
+                    <div class="vr-time-grid">
+
+                        <div class="vr-time-card">
+
+                            <div class="vr-time-label">
+                                Голос найден в записи
+                            </div>
+
+                            <div class="vr-time-value">
+                                {{ match.start_label }}
+                                →
+                                {{ match.end_label }}
+                            </div>
+
+                        </div>
+
+
+                        <div class="vr-time-card">
+
+                            <div class="vr-time-label">
+                                Длительность фрагмента
+                            </div>
+
+                            <div class="vr-time-value">
+                                {{ match.duration|round(3) }} сек.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    {% if match.audio_url %}
+
+                        <div class="vr-player-panel">
+
+                            <div class="vr-player-actions">
+
+                                <button
+                                    type="button"
+                                    class="vr-fragment-button"
+                                    data-fragment-play
+                                    data-audio-id="result-audio-{{ index }}"
+                                    data-start="{{ match.start }}"
+                                    data-end="{{ match.end }}"
+                                >
+                                    ▶ Прослушать найденный фрагмент
+                                </button>
+
+                            </div>
+
+
+                            <audio
+                                id="result-audio-{{ index }}"
+                                class="vr-audio"
+                                controls
+                                preload="metadata"
+                                src="{{ match.audio_url }}"
+                            ></audio>
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="vr-path-block">
+
+                        <div class="vr-path-label">
+                            Исходная запись
+                        </div>
+
+                        <div class="vr-path">
+                            {{ match.source_path }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </article>
+
+        {% endmacro %}
+
+
+        {% if best_match %}
+
+            <h2 class="vr-section-heading">
+                Лучшее совпадение
+            </h2>
+
+            {{ render_match(best_match, 0, True) }}
+
+
+            {% if other_matches %}
+
+                <section class="vr-other-results">
+
+                    <h2 class="vr-section-heading">
+                        Другие совпадения
+                    </h2>
+
+                    {% for match in other_matches %}
+
+                        {{ render_match(
+                            match,
+                            loop.index,
+                            False
+                        ) }}
+
+                    {% endfor %}
+
+                </section>
+
+            {% endif %}
+
+        {% else %}
+
+            <section class="vr-empty">
+
+                <div class="vr-empty-icon">
+                    ◌
+                </div>
+
+                <h2>
+                    Голос не найден
+                </h2>
+
+                <p>
+                    SonAr проверил доступные записи,
+                    но не обнаружил совпадений выше порога
+                    {{ result.threshold|round(1) }}%.
+                    Можно выбрать другой участок голоса,
+                    другую папку или изменить порог поиска.
+                </p>
+
+                <a
+                    class="vr-new-search"
+                    href="/voice_search"
+                >
+                    Попробовать ещё раз
+                </a>
+
+            </section>
+
+        {% endif %}
+
+
+        <div class="vr-explanation">
+
+            <strong>Важно:</strong>
+
+            <span>
+                Процент сходства показывает результат
+                автоматического сравнения голосовых признаков.
+                Он помогает найти наиболее похожие записи,
+                но сам по себе не является подтверждением личности человека.
+            </span>
+
+        </div>
+
+    {% endif %}
+
+</main>
+
+
+<script>
+(() => {
+    const activeHandlers = new WeakMap();
+
+    document
+        .querySelectorAll('[data-fragment-play]')
+        .forEach((button) => {
+
+            button.addEventListener('click', async () => {
+
+                const audioId =
+                    button.dataset.audioId;
+
+                const audio =
+                    document.getElementById(audioId);
+
+                if (!audio) {
+                    return;
+                }
+
+                const start =
+                    Number(button.dataset.start || 0);
+
+                const end =
+                    Number(button.dataset.end || 0);
+
+                document
+                    .querySelectorAll('audio')
+                    .forEach((otherAudio) => {
+                        if (otherAudio !== audio) {
+                            otherAudio.pause();
+                        }
+                    });
+
+                const oldHandler =
+                    activeHandlers.get(audio);
+
+                if (oldHandler) {
+                    audio.removeEventListener(
+                        'timeupdate',
+                        oldHandler
+                    );
+                }
+
+                const stopAtFragmentEnd = () => {
+
+                    if (
+                        audio.currentTime >= end
+                    ) {
+                        audio.pause();
+
+                        audio.removeEventListener(
+                            'timeupdate',
+                            stopAtFragmentEnd
+                        );
+
+                        activeHandlers.delete(
+                            audio
+                        );
+                    }
+                };
+
+                activeHandlers.set(
+                    audio,
+                    stopAtFragmentEnd
+                );
+
+                audio.addEventListener(
+                    'timeupdate',
+                    stopAtFragmentEnd
+                );
+
+                audio.currentTime = start;
+
+                try {
+                    await audio.play();
+                } catch (error) {
+                    console.error(
+                        'Fragment playback failed:',
+                        error
+                    );
+                }
+            });
+        });
+})();
+</script>
+
+</body>
+</html>

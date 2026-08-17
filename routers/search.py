@@ -1,3 +1,5 @@
+from urllib.parse import quote
+import json
 import multiprocessing
 import os
 import tempfile
@@ -301,6 +303,7 @@ def background_search_runner(
 @router.get("/results", response_class=HTMLResponse)
 @router.get("/results/{full_path:path}", response_class=HTMLResponse)
 async def browse_results(
+    request: Request,
     full_path: str = "",
     user=Depends(get_current_user),
 ):
@@ -533,6 +536,226 @@ async def browse_results(
           "<h3>?????? ????????</h3>",
           status_code=403,
       )
+
+  # ----------------------------------------------------------
+  # Human-readable result page for this job.
+  # Nested paths continue through the secured file-serving
+  # logic below.
+  # ----------------------------------------------------------
+
+  if len(path_parts) == 1:
+
+    metadata_path = os.path.join(
+        job_base_dir,
+        "results.json",
+    )
+
+    result_ready = False
+    result_error = None
+    result_data = {}
+
+    if os.path.isfile(
+        metadata_path
+    ):
+      try:
+        with open(
+            metadata_path,
+            "r",
+            encoding="utf-8",
+        ) as f:
+          result_data = json.load(f)
+
+        result_ready = True
+
+      except (
+          OSError,
+          ValueError,
+          TypeError,
+      ) as exc:
+        result_error = (
+            "\u0424\u0430\u0439\u043b \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430 \u043d\u0430\u0439\u0434\u0435\u043d, "
+            "\u043d\u043e \u0435\u0433\u043e \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c."
+        )
+
+        print(
+            "[VOICE RESULTS ERROR] "
+            f"{metadata_path}: {exc}"
+        )
+
+    raw_matches = (
+        result_data.get(
+            "matches",
+            [],
+        )
+        if isinstance(
+            result_data,
+            dict,
+        )
+        else []
+    )
+
+    def format_match_time(
+        value,
+    ):
+      try:
+        total_seconds = max(
+            0.0,
+            float(value),
+        )
+      except (
+          TypeError,
+          ValueError,
+      ):
+        total_seconds = 0.0
+
+      hours = int(
+          total_seconds // 3600
+      )
+
+      minutes = int(
+          (
+              total_seconds % 3600
+          )
+          // 60
+      )
+
+      seconds = (
+          total_seconds % 60
+      )
+
+      if hours:
+        return (
+            f"{hours:02d}:"
+            f"{minutes:02d}:"
+            f"{seconds:06.3f}"
+        )
+
+      return (
+          f"{minutes:02d}:"
+          f"{seconds:06.3f}"
+      )
+
+    matches = []
+
+    for raw_match in raw_matches:
+
+      if not isinstance(
+          raw_match,
+          dict,
+      ):
+        continue
+
+      match = dict(
+          raw_match
+      )
+
+      try:
+        match["similarity"] = float(
+            match.get(
+                "similarity",
+                0.0,
+            )
+        )
+      except (
+          TypeError,
+          ValueError,
+      ):
+        match["similarity"] = 0.0
+
+      try:
+        match["start"] = float(
+            match.get(
+                "start",
+                0.0,
+            )
+        )
+      except (
+          TypeError,
+          ValueError,
+      ):
+        match["start"] = 0.0
+
+      try:
+        match["end"] = float(
+            match.get(
+                "end",
+                0.0,
+            )
+        )
+      except (
+          TypeError,
+          ValueError,
+      ):
+        match["end"] = 0.0
+
+      match["duration"] = max(
+          0.0,
+          match["end"]
+          - match["start"],
+      )
+
+      match["start_label"] = (
+          format_match_time(
+              match["start"]
+          )
+      )
+
+      match["end_label"] = (
+          format_match_time(
+              match["end"]
+          )
+      )
+
+      stored_name = str(
+          match.get(
+              "stored_name",
+              "",
+          )
+          or ""
+      )
+
+      if stored_name:
+        match["audio_url"] = (
+            f"/results/{job_folder}/audio/"
+            f"{quote(stored_name, safe='')}"
+        )
+      else:
+        match["audio_url"] = ""
+
+      matches.append(
+          match
+      )
+
+    matches.sort(
+        key=lambda item: item[
+            "similarity"
+        ],
+        reverse=True,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="voice_results.html",
+        context={
+            "user": user,
+            "job": snapshot,
+            "result": result_data,
+            "result_ready": result_ready,
+            "result_error": result_error,
+            "matches": matches,
+            "best_match": (
+                matches[0]
+                if matches
+                else None
+            ),
+            "other_matches": (
+                matches[1:]
+                if len(matches) > 1
+                else []
+            ),
+        },
+    )
+
 
   relative_inside_job = "/".join(
       path_parts[1:]
