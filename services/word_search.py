@@ -59,7 +59,7 @@ def discover_audio_files(folder: Path) -> list[Path]:
     )
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=6)
 def _get_whisper_model(model_name: str, device: str, compute_type: str):
     try:
         from faster_whisper import WhisperModel
@@ -69,10 +69,106 @@ def _get_whisper_model(model_name: str, device: str, compute_type: str):
         ) from exc
 
     print(
-        f"[online-search] Загрузка Whisper: model={model_name}, "
+        f"[word-search] Загрузка Whisper: model={model_name}, "
         f"device={device}, compute_type={compute_type}"
     )
     return WhisperModel(model_name, device=device, compute_type=compute_type)
+
+
+def get_best_whisper_model(model_name: str):
+    """
+    Select Whisper runtime.
+
+    Explicit environment configuration has priority.
+    Otherwise CUDA is selected automatically with CPU fallback.
+    """
+    requested_device = (
+        os.getenv("WHISPER_DEVICE", "")
+        .strip()
+        .lower()
+    )
+
+    requested_compute = (
+        os.getenv(
+            "WHISPER_COMPUTE_TYPE",
+            "",
+        )
+        .strip()
+    )
+
+    if requested_device:
+        compute_type = (
+            requested_compute
+            or (
+                "float16"
+                if requested_device == "cuda"
+                else "int8"
+            )
+        )
+
+        print(
+            "[word-search] Explicit Whisper runtime: "
+            f"device={requested_device}, "
+            f"compute_type={compute_type}"
+        )
+
+        return _get_whisper_model(
+            model_name,
+            requested_device,
+            compute_type,
+        )
+
+    try:
+        import ctranslate2
+
+        gpu_count = (
+            ctranslate2.get_cuda_device_count()
+        )
+
+    except Exception as exc:
+        print(
+            "[word-search] CUDA detection failed: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        gpu_count = 0
+
+    if gpu_count > 0:
+        print(
+            "[word-search] NVIDIA GPUs detected: "
+            f"{gpu_count}"
+        )
+
+        try:
+            model = _get_whisper_model(
+                model_name,
+                "cuda",
+                "float16",
+            )
+
+            print(
+                "[word-search] Whisper uses NVIDIA GPU"
+            )
+
+            return model
+
+        except Exception as gpu_error:
+            print(
+                "[word-search] GPU initialization failed; "
+                "falling back to CPU: "
+                f"{type(gpu_error).__name__}: "
+                f"{gpu_error}"
+            )
+
+    print(
+        "[word-search] Whisper uses CPU"
+    )
+
+    return _get_whisper_model(
+        model_name,
+        "cpu",
+        "int8",
+    )
 
 
 def create_online_job(
@@ -168,10 +264,7 @@ def run_online_search(
             _update_job(job_id, status="completed", percent=100)
             return
 
-        device = os.getenv("WHISPER_DEVICE", "cpu").strip().lower() or "cpu"
-        default_compute = "float16" if device == "cuda" else "int8"
-        compute_type = os.getenv("WHISPER_COMPUTE_TYPE", default_compute)
-        model = _get_whisper_model(model_name, device, compute_type)
+        model = get_best_whisper_model(model_name)
 
         results: list[dict[str, Any]] = []
         successful = 0
@@ -179,25 +272,32 @@ def run_online_search(
 
         for number, audio_path in enumerate(files, start=1):
             _update_job(job_id, current_file=audio_path.name)
+
             try:
-                segments_iterator, info = model.transcribe(
-                    str(audio_path),
-                    language=language,
-                    task="transcribe",
-                    beam_size=8,
-                    best_of=8,
-                    temperature=0.0,
-                    vad_filter=True,
-                    vad_parameters={
+                transcribe_kwargs: dict[str, Any] = {
+                    "task": "transcribe",
+                    "beam_size": 8,
+                    "best_of": 8,
+                    "temperature": 0.0,
+                    "vad_filter": True,
+                    "vad_parameters": {
                         "min_silence_duration_ms": 500,
                         "speech_pad_ms": 300,
                     },
-                    condition_on_previous_text=True,
-                    word_timestamps=False,
-                    initial_prompt=(
+                    "condition_on_previous_text": True,
+                    "word_timestamps": False,
+                    "initial_prompt": (
                         "Аудиозапись на русском или казахском языке. "
                         "Возможные ключевые слова и фразы: " + ", ".join(keywords)
                     ),
+                }
+
+                if language:
+                    transcribe_kwargs["language"] = language
+
+                segments_iterator, info = model.transcribe(
+                    str(audio_path),
+                    **transcribe_kwargs,
                 )
 
                 transcript_parts: list[str] = []
@@ -208,26 +308,40 @@ def run_online_search(
                     text = (segment.text or "").strip()
                     if not text:
                         continue
-                    transcript_parts.append(text)
-                    last_end = float(segment.end)
 
-                    counts = keyword_counts(text, keywords)
-                    found = [word for word, count in counts.items() if count > 0]
-                    if found:
+                    transcript_parts.append(text)
+                    start = float(segment.start)
+                    end = float(segment.end)
+                    last_end = end
+
+                    segment_counts = keyword_counts(text, keywords)
+                    found_in_segment = [
+                        word for word, count in segment_counts.items() if count > 0
+                    ]
+
+                    if found_in_segment:
                         segment_matches.append(
                             {
-                                "start": float(segment.start),
-                                "end": float(segment.end),
-                                "start_label": format_timestamp(float(segment.start)),
-                                "end_label": format_timestamp(float(segment.end)),
+                                "start": start,
+                                "end": end,
+                                "start_label": format_timestamp(start),
+                                "end_label": format_timestamp(end),
                                 "text": text,
-                                "keywords": found,
+                                "keywords": found_in_segment,
+                                "counts": {
+                                    word: count
+                                    for word, count in segment_counts.items()
+                                    if count > 0
+                                },
                             }
                         )
 
                 transcription = " ".join(transcript_parts)
                 counts = keyword_counts(transcription, keywords)
-                found_keywords = [word for word, count in counts.items() if count > 0]
+                found_keywords = [
+                    word for word, count in counts.items() if count > 0
+                ]
+
                 matched = (
                     len(found_keywords) == len(keywords)
                     if mode == "all"
@@ -249,12 +363,14 @@ def run_online_search(
                             "segments": segment_matches,
                         }
                     )
+
                 successful += 1
+
             except Exception as file_error:
                 failed += 1
                 _append_file_error(job_id, audio_path.name, file_error)
                 print(
-                    f"[online-search] Ошибка файла {audio_path}: "
+                    f"[word-search] Ошибка файла {audio_path}: "
                     f"{type(file_error).__name__}: {file_error}"
                 )
 
@@ -275,8 +391,14 @@ def run_online_search(
             percent=100,
             results=results,
         )
+
+        print("[word-search] Онлайн-поиск завершен")
+        print(f"[word-search] Обработано: {successful}")
+        print(f"[word-search] Ошибок: {failed}")
+        print(f"[word-search] Совпадений: {len(results)}")
+
     except Exception as exc:
-        print(f"[online-search] {type(exc).__name__}: {exc}")
+        print(f"[word-search] {type(exc).__name__}: {exc}")
         _update_job(
             job_id,
             status="error",

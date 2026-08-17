@@ -16,6 +16,7 @@ from auth_permissions import has_role, role_home
 from services.word_search import (
     create_online_job,
     get_online_job,
+    parse_keywords as parse_online_keywords,
     run_online_search,
 )
 from database import (
@@ -414,7 +415,7 @@ async def start_online_search(
         )
 
     try:
-        parsed = parse_keywords(keywords)
+        parsed = parse_online_keywords(keywords)
     except ValueError as exc:
         return RedirectResponse(
             url=f"/?error={str(exc)}",
