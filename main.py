@@ -512,7 +512,9 @@ async def online_search_status(
         "current_file": job["current_file"],
         "percent": job["percent"],
         "error": job["error"],
-        "results_count": len(job["results"]),
+        "results_count": len(job.get("results", [])),
+        "results": job.get("results", []),
+        "file_errors": job.get("file_errors", []),
     }
 
 

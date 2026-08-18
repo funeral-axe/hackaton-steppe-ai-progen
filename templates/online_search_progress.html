@@ -139,7 +139,7 @@
                     </span>
 
                     <strong id="resultsCount">
-                        0
+                        {{ job.results|length if job.results else 0 }}
                     </strong>
 
                 </div>
@@ -243,82 +243,421 @@
 
         </section>
 
+
+        <section
+            class="search-progress-card mt-4"
+            id="liveResultsSection"
+        >
+            <div class="progress-state-head">
+
+                <div class="progress-state">
+
+                    <div class="progress-state-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+
+                    <div>
+                        <div class="progress-state-label">
+                            Онлайн-результаты
+                        </div>
+
+                        <div class="progress-state-value">
+                            Найденные файлы
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="progress-results-count">
+                    <span class="progress-state-label">
+                        Найдено
+                    </span>
+
+                    <strong id="liveResultsCount">
+                        {{ job.results|length if job.results else 0 }}
+                    </strong>
+                </div>
+
+            </div>
+
+            <p class="text-secondary mt-3 mb-3">
+                Результаты появляются здесь сразу
+                после обработки аудиофайла.
+            </p>
+
+            <div
+                id="emptyResults"
+                class="text-center py-4{% if job.results %} d-none{% endif %}"
+            >
+                <i
+                    class="bi bi-hourglass-split text-secondary"
+                    style="font-size: 2rem;"
+                ></i>
+
+                <div class="mt-2 fw-semibold">
+                    Пока совпадений нет
+                </div>
+
+                <div class="text-secondary small mt-1">
+                    Whisper продолжает обработку.
+                </div>
+            </div>
+
+            <div id="liveResultsContainer"></div>
+
+            <div
+                id="completedBox"
+                class="alert alert-success mt-4 mb-0 d-none"
+            >
+                <i class="bi bi-check-circle-fill me-1"></i>
+
+                Поиск завершён.
+
+                <a
+                    href="/online-search/results/{{ job_id }}"
+                    class="alert-link ms-2"
+                >
+                    Открыть итоговую страницу
+                </a>
+            </div>
+
+        </section>
+
     </main>
 
 </div>
 
 
 <script>
+
 const jobId = {{ job_id|tojson }};
 
 const statusLabels = {
-    queued: "В очереди",
-    running: "Выполняется",
-    completed: "Завершено",
-    error: "Ошибка"
+    queued: "\u0412 \u043e\u0447\u0435\u0440\u0435\u0434\u0438",
+    running: "\u0412\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442\u0441\u044f",
+    completed: "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e",
+    error: "\u041e\u0448\u0438\u0431\u043a\u0430"
 };
+
+const renderedResults = new Set();
+
+
+function setText(id, value) {
+
+    const element =
+        document.getElementById(id);
+
+    if (!element) {
+        return;
+    }
+
+    element.textContent =
+        value === undefined ||
+        value === null
+            ? ""
+            : String(value);
+}
+
+
+function resultKey(result, index) {
+
+    return (
+        result.file_path ||
+        result.file_name ||
+        `${index}:${result.transcription || ""}`
+    );
+}
+
+
+function createResultCard(result, number) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "card border-0 shadow-sm mb-3";
+
+    const body =
+        document.createElement("div");
+
+    body.className = "card-body";
+
+    const title =
+        document.createElement("h5");
+
+    title.className =
+        "card-title mb-2";
+
+    title.textContent =
+        `${number}. ${
+            result.file_name ||
+            "\u0424\u0430\u0439\u043b"
+        }`;
+
+    body.appendChild(title);
+
+
+    if (
+        Array.isArray(result.found_keywords) &&
+        result.found_keywords.length > 0
+    ) {
+
+        const keywords =
+            document.createElement("div");
+
+        keywords.className =
+            "d-flex flex-wrap gap-2 mb-3";
+
+        for (
+            const keyword
+            of result.found_keywords
+        ) {
+
+            const badge =
+                document.createElement("span");
+
+            badge.className =
+                "badge text-bg-primary";
+
+            badge.textContent =
+                String(keyword);
+
+            keywords.appendChild(
+                badge
+            );
+        }
+
+        body.appendChild(
+            keywords
+        );
+    }
+
+
+    if (result.transcription) {
+
+        const text =
+            document.createElement("p");
+
+        text.className =
+            "card-text mb-2";
+
+        text.textContent =
+            String(result.transcription);
+
+        body.appendChild(text);
+    }
+
+
+    if (
+        Array.isArray(result.segments) &&
+        result.segments.length > 0
+    ) {
+
+        const details =
+            document.createElement("details");
+
+        details.className = "mt-3";
+
+        const summary =
+            document.createElement("summary");
+
+        summary.className =
+            "fw-semibold";
+
+        summary.textContent =
+            "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u044f \u043f\u043e \u0444\u0440\u0430\u0433\u043c\u0435\u043d\u0442\u0430\u043c: "
+            + result.segments.length;
+
+        details.appendChild(
+            summary
+        );
+
+
+        for (
+            const segment
+            of result.segments
+        ) {
+
+            const row =
+                document.createElement("div");
+
+            row.className =
+                "small text-secondary mt-2";
+
+            const start =
+                segment.start_label ??
+                segment.start ??
+                "";
+
+            const end =
+                segment.end_label ??
+                segment.end ??
+                "";
+
+            const segmentText =
+                segment.text || "";
+
+            row.textContent =
+                `${start} \u2014 ${end}: ${segmentText}`;
+
+            details.appendChild(
+                row
+            );
+        }
+
+        body.appendChild(
+            details
+        );
+    }
+
+
+    card.appendChild(body);
+
+    return card;
+}
+
+
+function renderResults(results) {
+
+    if (!Array.isArray(results)) {
+        return;
+    }
+
+    const container =
+        document.getElementById(
+            "liveResultsContainer"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    for (
+        let index = 0;
+        index < results.length;
+        index += 1
+    ) {
+
+        const result =
+            results[index];
+
+        const key =
+            resultKey(
+                result,
+                index
+            );
+
+        if (
+            renderedResults.has(key)
+        ) {
+            continue;
+        }
+
+        renderedResults.add(key);
+
+        const card =
+            createResultCard(
+                result,
+                renderedResults.size
+            );
+
+        container.appendChild(card);
+    }
+
+    setText(
+        "liveResultsCount",
+        renderedResults.size
+    );
+
+    const empty =
+        document.getElementById(
+            "emptyResults"
+        );
+
+    if (
+        empty &&
+        renderedResults.size > 0
+    ) {
+        empty.classList.add(
+            "d-none"
+        );
+    }
+}
 
 
 async function refreshOnlineStatus() {
-    try {
-        const response = await fetch(
-            `/api/online-search/${jobId}`,
-            {
-                cache: "no-store"
-            }
-        );
 
-        const data = await response.json();
+    try {
+
+        const response =
+            await fetch(
+                `/api/online-search/${jobId}`,
+                {
+                    cache: "no-store"
+                }
+            );
+
+        const data =
+            await response.json();
 
         if (!response.ok) {
             throw new Error(
                 data.error ||
-                "Ошибка получения статуса"
+                "\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u044f \u0441\u0442\u0430\u0442\u0443\u0441\u0430"
             );
         }
 
 
-        document.getElementById(
-            "statusText"
-        ).textContent =
+        const errorBox =
+            document.getElementById(
+                "errorBox"
+            );
+
+        if (errorBox) {
+
+            errorBox.textContent = "";
+
+            errorBox.classList.add(
+                "d-none"
+            );
+        }
+
+
+        setText(
+            "statusText",
             statusLabels[data.status] ||
-            data.status;
+            data.status
+        );
 
+        setText(
+            "processed",
+            data.processed_files
+        );
 
-        document.getElementById(
-            "processed"
-        ).textContent =
-            data.processed_files;
+        setText(
+            "total",
+            data.total_files
+        );
 
+        setText(
+            "successful",
+            data.successful_files
+        );
 
-        document.getElementById(
-            "total"
-        ).textContent =
-            data.total_files;
+        setText(
+            "failed",
+            data.failed_files
+        );
 
+        setText(
+            "currentFile",
+            data.current_file || "-"
+        );
 
-        document.getElementById(
-            "successful"
-        ).textContent =
-            data.successful_files;
-
-
-        document.getElementById(
-            "failed"
-        ).textContent =
-            data.failed_files;
-
-
-        document.getElementById(
-            "currentFile"
-        ).textContent =
-            data.current_file || "-";
-
-
-        document.getElementById(
-            "resultsCount"
-        ).textContent =
-            data.results_count;
+        setText(
+            "resultsCount",
+            data.results_count ?? 0
+        );
 
 
         const bar =
@@ -326,22 +665,79 @@ async function refreshOnlineStatus() {
                 "progressBar"
             );
 
-        bar.style.width =
-            `${data.percent}%`;
+        if (bar) {
+
+            bar.style.width =
+                `${data.percent}%`;
+        }
 
 
-        document.getElementById(
-            "progressPercent"
-        ).textContent =
-            `${data.percent}%`;
+        setText(
+            "progressPercent",
+            `${data.percent}%`
+        );
+
+
+        renderResults(
+            data.results || []
+        );
 
 
         if (
-            data.status === "completed" ||
-            data.status === "error"
+            data.status ===
+            "completed"
         ) {
-            window.location.href =
-                `/online-search/results/${jobId}`;
+
+            if (bar) {
+
+                bar.classList.remove(
+                    "progress-bar-animated"
+                );
+            }
+
+            setText(
+                "currentFile",
+                "-"
+            );
+
+            const completedBox =
+                document.getElementById(
+                    "completedBox"
+                );
+
+            if (completedBox) {
+
+                completedBox.classList.remove(
+                    "d-none"
+                );
+            }
+
+            return;
+        }
+
+
+        if (
+            data.status ===
+            "error"
+        ) {
+
+            if (bar) {
+
+                bar.classList.remove(
+                    "progress-bar-animated"
+                );
+            }
+
+            if (errorBox) {
+
+                errorBox.textContent =
+                    data.error ||
+                    "\u041e\u0448\u0438\u0431\u043a\u0430 \u043e\u043d\u043b\u0430\u0439\u043d-\u043f\u043e\u0438\u0441\u043a\u0430";
+
+                errorBox.classList.remove(
+                    "d-none"
+                );
+            }
 
             return;
         }
@@ -349,27 +745,41 @@ async function refreshOnlineStatus() {
 
         window.setTimeout(
             refreshOnlineStatus,
-            1500
+            1000
         );
 
     } catch (error) {
 
-        const box =
+        console.error(
+            "Online search API error:",
+            error
+        );
+
+        const errorBox =
             document.getElementById(
                 "errorBox"
             );
 
-        box.textContent =
-            error.message;
+        if (errorBox) {
 
-        box.classList.remove(
-            "d-none"
+            errorBox.textContent =
+                error.message;
+
+            errorBox.classList.remove(
+                "d-none"
+            );
+        }
+
+        window.setTimeout(
+            refreshOnlineStatus,
+            3000
         );
     }
 }
 
 
 refreshOnlineStatus();
+
 </script>
 
 </body>
