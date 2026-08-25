@@ -676,25 +676,19 @@
                                         <select
                                             class="form-select"
                                             name="model_name"
+                                            id="whisperModel"
                                         >
-                                            <option value="small">
-                                                Small — быстрее
-                                            </option>
-
-                                            <option
-                                                value="medium"
-                                                selected
-                                            >
-                                                Medium — рекомендуется
-                                            </option>
-
-                                            <option value="large-v3">
-                                                Large v3 — точнее
-                                            </option>
-
-                                            <option value="large-v3-turbo">
-                                                Large v3 Turbo
-                                            </option>
+                                            {% for model in whisper_models %}
+                                                <option
+                                                    value="{{ model.key }}"
+                                                    {% if model.key == "medium" %}selected{% endif %}
+                                                >
+                                                    {{ model.label }}
+                                                    {% if model.key == "large-v3-trained" %}
+                                                        ({{ model.source }})
+                                                    {% endif %}
+                                                </option>
+                                            {% endfor %}
                                         </select>
 
                                     </div>

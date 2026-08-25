@@ -75,7 +75,36 @@ def _get_whisper_model(model_name: str, device: str, compute_type: str):
     return WhisperModel(model_name, device=device, compute_type=compute_type)
 
 
+def resolve_whisper_model_name(
+    model_name: str | None = None,
+) -> str:
+    requested_model = (
+        str(model_name or "")
+        .strip()
+    )
+
+    if requested_model:
+        return requested_model
+
+    configured_model = (
+        os.getenv(
+            "WHISPER_MODEL",
+            "",
+        )
+        .strip()
+    )
+
+    if configured_model:
+        return configured_model
+
+    return "medium"
+
+
 def get_best_whisper_model(model_name: str):
+    model_name = resolve_whisper_model_name(
+        model_name
+    )
+
     """
     Select Whisper runtime.
 

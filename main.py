@@ -38,6 +38,10 @@ from database import (
 
 from routers import operator as operator_router
 from routers import search as voice_search_router
+from services.whisper_models import (
+    get_whisper_model_choices,
+    resolve_whisper_model,
+)
 
 def get_db():
     db = SessionLocal()
@@ -287,6 +291,7 @@ async def index_page(
             "error_count": error_count,
             "message": request.query_params.get("message"),
             "error": request.query_params.get("error"),
+            "whisper_models": get_whisper_model_choices(),
         },
     )
 
@@ -429,10 +434,26 @@ async def start_online_search(
             status_code=303,
         )
 
-    allowed_models = {"small", "medium", "large-v3", "large-v3-turbo"}
-    selected_model = model_name if model_name in allowed_models else "medium"
+    try:
+        selected_model_option = resolve_whisper_model(
+            model_name
+        )
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/?error={str(exc)}",
+            status_code=303,
+        )
+
+    selected_model = selected_model_option.source
     selected_language = None if language == "auto" else language
     mode = "all" if search_mode == "all" else "any"
+
+    print(
+        "[word-search] Selected Whisper model: "
+        f"key={selected_model_option.key}, "
+        f"label={selected_model_option.label}, "
+        f"source={selected_model_option.source}"
+    )
 
     job_id = create_online_job(
         folder_path=clean_folder,
