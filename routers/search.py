@@ -100,14 +100,11 @@ def background_search_runner(
           f"current status={job.snapshot()['status']}"
       )
 
-    # Job keeps its own result directory.
-    # It must never obtain this value from legacy global state.
     job.update(
         results_dir=job_results_dir,
     )
 
   else:
-    # Legacy fallback only.
     progress_manager.start(
         total_files
     )
@@ -144,6 +141,11 @@ def background_search_runner(
         results_dir=job_results_dir,
     )
 
+  # ДОБАВЛЕНА ФУНКЦИЯ КОЛЛБЭКА 
+  def on_match(match_data):
+      if job is not None:
+          job.add_match(match_data)
+
   def run_search():
     try:
       search_result["cancelled"] = (
@@ -157,6 +159,7 @@ def background_search_runner(
               pause_event=pause_event,
               cancel_event=cancel_event,
               results_dir=job_results_dir,
+              on_match_found=on_match, # ПЕРЕДАЕМ КОЛЛБЭК СЮДА
           )
       )
 
@@ -179,26 +182,18 @@ def background_search_runner(
   while not search_done.is_set():
 
     if job is not None:
-
-      # New job-scoped path.
-      # Pause/resume/cancel events are owned by VoiceSearchJob.
-      # The global progress_manager is intentionally ignored.
       with lock:
         current_processed = (
             shared_counter.value
         )
-
       update_job_progress(
           current_processed
       )
 
     else:
-
-      # Pure legacy fallback for callers without job_id.
       current_state = (
           progress_manager.get()
       )
-
       status = current_state[
           "status"
       ]
@@ -206,10 +201,8 @@ def background_search_runner(
       if status == "cancel_requested":
         pause_event.clear()
         cancel_event.set()
-
       elif status == "paused":
         pause_event.set()
-
       elif status == "running":
         pause_event.clear()
 
@@ -217,7 +210,6 @@ def background_search_runner(
         current_processed = (
             shared_counter.value
         )
-
       progress_manager.update(
           current_processed
       )
@@ -254,6 +246,11 @@ def background_search_runner(
           f"similarity={identity_summary.get('similarity')} "
           f"candidates={identity_summary.get('candidates_count')}"
       )
+
+      if job is not None:
+        identity_data = identity.get("identity")
+        candidates = identity.get("identity_candidates", [])
+        job.set_identity(identity_data, candidates)
 
     except Exception as e:
       print(
@@ -296,8 +293,6 @@ def background_search_runner(
 
   else:
 
-    # Legacy completion path remains available,
-    # but it cannot influence a job-scoped search.
     progress_manager.update(
         current_processed
     )
@@ -319,7 +314,6 @@ def background_search_runner(
         search_result["error"]
         is not None
     ):
-      # Preserve the existing legacy behavior.
       progress_manager.finish()
 
     else:
