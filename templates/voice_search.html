@@ -2,816 +2,262 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Голосовой поиск — SonAr</title>
-
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-        rel="stylesheet"
-    >
-
-    <link
-        href="{{ url_for('static', path='css/sonar-tokens.css') }}"
-        rel="stylesheet"
-    >
-
-    <link
-        href="{{ url_for('static', path='css/sonar-base.css') }}"
-        rel="stylesheet"
-    >
-
-    <link
-        href="{{ url_for('static', path='css/sonar-components.css') }}"
-        rel="stylesheet"
-    >
-
-    <link
-        href="{{ url_for('static', path='css/sonar-user.css') }}"
-        rel="stylesheet"
-    >
-
-    <link
-        href="{{ url_for('static', path='css/sonar-voice.css') }}"
-        rel="stylesheet"
-    >
-
-    <script
-        src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"
-    ></script>
-
-    <script
-        src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"
-    ></script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <link href="{{ url_for('static', path='css/sonar-tokens.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/sonar-base.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/sonar-components.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/sonar-user.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/sonar-voice.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', path='css/sonar-voice-results.css') }}" rel="stylesheet">
+    
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
 </head>
-
 <body class="user-body">
-
 <div class="user-shell">
-
     <header class="user-header">
-
-        <a
-            class="user-brand"
-            href="/user"
-        >
-            <span class="user-brand-mark">
-                <i class="bi bi-soundwave"></i>
-            </span>
-
+        <a class="user-brand" href="/user">
+            <span class="user-brand-mark"><i class="bi bi-soundwave"></i></span>
             <span>
-                <span class="user-brand-name">
-                    SonAr
-                </span>
-
-                <span class="user-brand-subtitle">
-                    Система поиска и анализа
-                </span>
+                <span class="user-brand-name">SonAr</span>
+                <span class="user-brand-subtitle">Система поиска и анализа</span>
             </span>
         </a>
-
-
         <div class="user-account">
-
-            <div class="user-account-avatar">
-                <i class="bi bi-person"></i>
-            </div>
-
+            <div class="user-account-avatar"><i class="bi bi-person"></i></div>
             <div class="user-account-meta">
-
-                <div class="user-account-role">
-                    Пользователь
-                </div>
-
-                <div class="user-account-name">
-                    {{ user.login }}
-                </div>
-
+                <div class="user-account-role">Пользователь</div>
+                <div class="user-account-name">{{ user.login }}</div>
             </div>
-
-            <a
-                class="user-logout"
-                href="/logout"
-            >
+            <a class="user-logout" href="/logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Выйти</span>
             </a>
-
         </div>
-
     </header>
 
-
     <div class="voice-workspace">
-
-        <!-- =================================================
-             SIDEBAR
-             ================================================= -->
-
         <aside class="voice-sidebar">
-
             <div class="voice-sidebar-head">
-
                 <div class="voice-sidebar-title">
-                    <i class="bi bi-mic"></i>
-                    Голосовой поиск
+                    <i class="bi bi-mic"></i> Голосовой поиск
                 </div>
-
                 <div class="voice-sidebar-subtitle">
-                    Найдите записи человека
-                    по короткому образцу голоса.
+                    Найдите записи человека по короткому образцу голоса.
                 </div>
-
             </div>
 
-
             <div class="voice-nav-section">
-
-                <div class="voice-nav-label">
-                    Навигация
-                </div>
-
+                <div class="voice-nav-label">Навигация</div>
                 <div class="voice-nav-items">
-
-                    <a
-                        class="voice-nav-item"
-                        href="/user"
-                    >
-                        <span class="voice-nav-icon">
-                            <i class="bi bi-house"></i>
-                        </span>
-
+                    <a class="voice-nav-item" href="/user">
+                        <span class="voice-nav-icon"><i class="bi bi-house"></i></span>
                         <span class="voice-nav-copy">
-                            <span class="voice-nav-name">
-                                Главная
-                            </span>
-
-                            <span class="voice-nav-description">
-                                Выбор режима SonAr
-                            </span>
+                            <span class="voice-nav-name">Главная</span>
+                            <span class="voice-nav-description">Выбор режима SonAr</span>
                         </span>
                     </a>
-
                 </div>
-
             </div>
 
-
             <div class="voice-nav-section">
-
-                <div class="voice-nav-label">
-                    Поиск
-                </div>
-
+                <div class="voice-nav-label">Поиск</div>
                 <div class="voice-nav-items">
-
-                    <button
-                        class="voice-nav-item active"
-                        type="button"
-                        data-voice-view="setup"
-                    >
-                        <span class="voice-nav-icon">
-                            <i class="bi bi-plus-circle"></i>
-                        </span>
-
+                    <button class="voice-nav-item active" type="button" data-voice-view="setup">
+                        <span class="voice-nav-icon"><i class="bi bi-plus-circle"></i></span>
                         <span class="voice-nav-copy">
-                            <span class="voice-nav-name">
-                                Новый поиск
-                            </span>
-
-                            <span class="voice-nav-description">
-                                Выбрать голос и папку
-                            </span>
+                            <span class="voice-nav-name">Новый поиск</span>
+                            <span class="voice-nav-description">Выбрать голос и папку</span>
                         </span>
                     </button>
-
-
-                    <button
-                        class="voice-nav-item"
-                        type="button"
-                        data-voice-view="task"
-                    >
-                        <span class="voice-nav-icon">
-                            <i class="bi bi-activity"></i>
-                        </span>
-
+                    <button class="voice-nav-item" type="button" data-voice-view="task">
+                        <span class="voice-nav-icon"><i class="bi bi-activity"></i></span>
                         <span class="voice-nav-copy">
-                            <span class="voice-nav-name">
-                                Текущая задача
-                            </span>
-
-                            <span class="voice-nav-description">
-                                Прогресс и управление
-                            </span>
+                            <span class="voice-nav-name">Текущая задача</span>
+                            <span class="voice-nav-description">Прогресс и управление</span>
                         </span>
                     </button>
-
                 </div>
-
             </div>
 
-
             <div class="voice-nav-section">
-
-                <div class="voice-nav-label">
-                    Другой режим
-                </div>
-
+                <div class="voice-nav-label">Другой режим</div>
                 <div class="voice-nav-items">
-
-                    <a
-                        class="voice-nav-item"
-                        href="/"
-                    >
-                        <span class="voice-nav-icon">
-                            <i class="bi bi-search"></i>
-                        </span>
-
+                    <a class="voice-nav-item" href="/">
+                        <span class="voice-nav-icon"><i class="bi bi-search"></i></span>
                         <span class="voice-nav-copy">
-                            <span class="voice-nav-name">
-                                Текстовый поиск
-                            </span>
-
-                            <span class="voice-nav-description">
-                                Найти слова и фразы
-                            </span>
+                            <span class="voice-nav-name">Текстовый поиск</span>
+                            <span class="voice-nav-description">Найти слова и фразы</span>
                         </span>
                     </a>
-
                 </div>
-
             </div>
-
 
             <div class="voice-sidebar-footer">
-
                 <div class="voice-sidebar-tip">
-
                     <i class="bi bi-lightbulb"></i>
-
-                    <span>
-                        Лучше всего использовать
-                        чистый фрагмент речи
-                        длиной от 3 до 5 секунд.
-                    </span>
-
+                    <span>Лучше всего использовать чистый фрагмент речи длиной от 3 до 5 секунд.</span>
                 </div>
-
             </div>
-
         </aside>
 
-
-        <!-- =================================================
-             MAIN
-             ================================================= -->
-
         <main class="voice-main">
-
             <header class="voice-main-header">
-
                 <div class="voice-heading-copy">
-
-                    <div class="voice-heading-tag">
-                        <i class="bi bi-mic"></i>
-                        Голосовой модуль SonAr
-                    </div>
-
-                    <h1>
-                        Найдите человека по голосу
-                    </h1>
-
-                    <p>
-                        Загрузите образец голоса,
-                        выделите короткий фрагмент
-                        и укажите папку,
-                        в которой нужно выполнить поиск.
-                    </p>
-
+                    <div class="voice-heading-tag"><i class="bi bi-mic"></i> Голосовой модуль SonAr</div>
+                    <h1>Найдите человека по голосу</h1>
+                    <p>Загрузите образец голоса, выделите короткий фрагмент и укажите папку, в которой нужно выполнить поиск.</p>
                 </div>
-
-
                 <div class="voice-meta">
-
                     <div class="voice-meta-card">
-
-                        <div class="voice-meta-label">
-                            Дата
-                        </div>
-
-                        <div class="voice-meta-value">
-                            {{ date if date else "Не указана" }}
-                        </div>
-
+                        <div class="voice-meta-label">Дата</div>
+                        <div class="voice-meta-value">{{ date if date else "Не указана" }}</div>
                     </div>
-
-
                     <div class="voice-meta-card">
-
-                        <div class="voice-meta-label">
-                            Номер
-                        </div>
-
-                        <div class="voice-meta-value">
-                            {{ number if number else "Не указан" }}
-                        </div>
-
+                        <div class="voice-meta-label">Номер</div>
+                        <div class="voice-meta-value">{{ number if number else "Не указан" }}</div>
                     </div>
-
                 </div>
-
             </header>
 
-
-            <!-- =================================================
-                 SETUP PANEL
-                 ================================================= -->
-
-            <section
-                class="voice-view"
-                data-voice-panel="setup"
-            >
-
+            <section class="voice-view" data-voice-panel="setup">
                 <div class="voice-card">
-
                     <div class="voice-card-header">
-
-                        <div class="voice-card-icon">
-                            <i class="bi bi-person-voice"></i>
-                        </div>
-
+                        <div class="voice-card-icon"><i class="bi bi-person-voice"></i></div>
                         <div>
-
-                            <h2 class="voice-card-title">
-                                Новый голосовой поиск
-                            </h2>
-
-                            <div class="voice-card-description">
-                                Следуйте трём шагам.
-                                Основные настройки уже выбраны
-                                автоматически.
-                            </div>
-
+                            <h2 class="voice-card-title">Новый голосовой поиск</h2>
+                            <div class="voice-card-description">Следуйте трём шагам. Основные настройки уже выбраны автоматически.</div>
                         </div>
-
                     </div>
-
-
                     <div class="voice-card-body">
-
                         <div class="voice-steps">
-
-                            <div class="voice-step">
-
-                                <div class="voice-step-number">
-                                    1
-                                </div>
-
-                                <div class="voice-step-name">
-                                    Загрузите голос
-                                </div>
-
-                            </div>
-
-
-                            <div class="voice-step">
-
-                                <div class="voice-step-number">
-                                    2
-                                </div>
-
-                                <div class="voice-step-name">
-                                    Выберите 3–5 секунд
-                                </div>
-
-                            </div>
-
-
-                            <div class="voice-step">
-
-                                <div class="voice-step-number">
-                                    3
-                                </div>
-
-                                <div class="voice-step-name">
-                                    Укажите папку
-                                </div>
-
-                            </div>
-
+                            <div class="voice-step"><div class="voice-step-number">1</div><div class="voice-step-name">Загрузите голос</div></div>
+                            <div class="voice-step"><div class="voice-step-number">2</div><div class="voice-step-name">Выберите 3–5 секунд</div></div>
+                            <div class="voice-step"><div class="voice-step-number">3</div><div class="voice-step-name">Укажите папку</div></div>
                         </div>
-
 
                         <form id="voiceSearchForm">
-
                             <div class="voice-form-grid">
-
-                                <!-- LEFT -->
-
                                 <div class="voice-form-section">
-
                                     <div class="voice-field-block">
-
-                                        <div class="voice-field-title">
-                                            1. Образец голоса
-                                        </div>
-
+                                        <div class="voice-field-title">1. Образец голоса</div>
                                         <div class="voice-upload">
-
-                                            <input
-                                                type="file"
-                                                id="audioUpload"
-                                                accept="audio/*"
-                                                required
-                                            >
-
+                                            <input type="file" id="audioUpload" accept="audio/*" required>
                                         </div>
-
-                                        <div class="voice-field-help">
-                                            Поддерживаются обычные
-                                            аудиоформаты:
-                                            MP3, WAV, M4A и другие.
-                                        </div>
-
+                                        <div class="voice-field-help">Поддерживаются обычные аудиоформаты: MP3, WAV, M4A и другие.</div>
                                     </div>
-
 
                                     <div class="voice-field-block">
-
-                                        <div class="voice-field-title">
-                                            2. Выберите нужный фрагмент
-                                        </div>
-
-
+                                        <div class="voice-field-title">2. Выберите нужный фрагмент</div>
                                         <div class="waveform-shell">
-
                                             <div id="waveform"></div>
-
-
                                             <div class="waveform-toolbar">
-
-                                                <div class="waveform-info">
-
-                                                    <div id="timeInfo">
-                                                        Сначала выберите
-                                                        аудиофайл выше.
-                                                    </div>
-
-                                                </div>
-
-
+                                                <div class="waveform-info"><div id="timeInfo">Сначала выберите аудиофайл выше.</div></div>
                                                 <div class="audio-buttons-group">
-
-                                                    <button
-                                                        type="button"
-                                                        class="btn-audio-ctrl btn-play"
-                                                        id="playSegmentBtn"
-                                                        disabled
-                                                    >
-                                                        <i class="bi bi-play-fill"></i>
-                                                        Слушать
-                                                    </button>
-
-
-                                                    <button
-                                                        type="button"
-                                                        class="btn-audio-ctrl btn-pause"
-                                                        id="pauseSegmentBtn"
-                                                        disabled
-                                                    >
-                                                        <i class="bi bi-pause-fill"></i>
-                                                        Пауза
-                                                    </button>
-
-
-                                                    <button
-                                                        type="button"
-                                                        class="btn-audio-ctrl btn-stop"
-                                                        id="stopSegmentBtn"
-                                                        disabled
-                                                    >
-                                                        <i class="bi bi-stop-fill"></i>
-                                                        Стоп
-                                                    </button>
-
+                                                    <button type="button" class="btn-audio-ctrl btn-play" id="playSegmentBtn" disabled><i class="bi bi-play-fill"></i> Слушать</button>
+                                                    <button type="button" class="btn-audio-ctrl btn-pause" id="pauseSegmentBtn" disabled><i class="bi bi-pause-fill"></i> Пауза</button>
+                                                    <button type="button" class="btn-audio-ctrl btn-stop" id="stopSegmentBtn" disabled><i class="bi bi-stop-fill"></i> Стоп</button>
                                                 </div>
-
                                             </div>
-
                                         </div>
-
-
                                         <div class="zoom-container">
-
-                                            <label for="zoomSlider">
-                                                <i class="bi bi-zoom-in"></i>
-                                                Масштаб
-                                            </label>
-
-                                            <input
-                                                type="range"
-                                                id="zoomSlider"
-                                                min="10"
-                                                max="500"
-                                                value="50"
-                                                disabled
-                                            >
-
+                                            <label for="zoomSlider"><i class="bi bi-zoom-in"></i> Масштаб</label>
+                                            <input type="range" id="zoomSlider" min="10" max="500" value="50" disabled>
                                         </div>
-
-
-                                        <input
-                                            type="hidden"
-                                            id="startTime"
-                                            name="start"
-                                        >
-
-                                        <input
-                                            type="hidden"
-                                            id="endTime"
-                                            name="end"
-                                        >
-
+                                        <input type="hidden" id="startTime" name="start">
+                                        <input type="hidden" id="endTime" name="end">
                                     </div>
-
                                 </div>
 
-
-                                <!-- RIGHT -->
-
                                 <div class="voice-form-section">
-
                                     <div class="voice-settings-card">
-
-                                        <div class="voice-settings-title">
-                                            3. Где искать?
-                                        </div>
-
-                                        <div class="voice-settings-description">
-                                            Укажите папку
-                                            с аудиозаписями,
-                                            которые SonAr должен проверить.
-                                        </div>
-
-
-                                        <label
-                                            class="form-label"
-                                            for="folderPath"
-                                        >
-                                            Папка с аудиозаписями
-                                        </label>
-
-
+                                        <div class="voice-settings-title">3. Где искать?</div>
+                                        <div class="voice-settings-description">Укажите папку с аудиозаписями, которые SonAr должен проверить.</div>
+                                        <label class="form-label" for="folderPath">Папка с аудиозаписями</label>
                                         <div class="folder-check-row">
-
-                                            <input
-                                                type="text"
-                                                class="form-control"
-                                                id="folderPath"
-                                                placeholder="Например: D:udio"
-                                                required
-                                            >
-
-                                            <button
-                                                type="button"
-                                                class="btn-secondary"
-                                                id="checkFolderBtn"
-                                            >
-                                                Проверить
-                                            </button>
-
+                                            <input type="text" class="form-control" id="folderPath" placeholder="Например: D:\audio" required>
+                                            <button type="button" class="btn-secondary" id="checkFolderBtn">Проверить</button>
                                         </div>
-
-
-                                        <div
-                                            id="folderInfo"
-                                        ></div>
-
+                                        <div id="folderInfo"></div>
 
                                         <details class="voice-advanced">
-
-                                            <summary>
-                                                <i class="bi bi-sliders"></i>
-                                                Дополнительные настройки
-                                            </summary>
-
-
+                                            <summary><i class="bi bi-sliders"></i> Дополнительные настройки</summary>
                                             <div class="voice-advanced-body">
-
-                                                <label
-                                                    class="form-label"
-                                                    for="thresholdInput"
-                                                >
-                                                    Минимальное сходство
-                                                </label>
-
+                                                <label class="form-label" for="thresholdInput">Минимальное сходство</label>
                                                 <div class="input-group">
-
-                                                    <input
-                                                        type="number"
-                                                        class="form-control"
-                                                        id="thresholdInput"
-                                                        name="threshold"
-                                                        value="34"
-                                                        min="20"
-                                                        max="70"
-                                                        step="1"
-                                                        required
-                                                    >
-
-                                                    <span class="input-group-text">
-                                                        %
-                                                    </span>
-
+                                                    <input type="number" class="form-control" id="thresholdInput" name="threshold" value="34" min="20" max="70" step="1" required>
+                                                    <span class="input-group-text">%</span>
                                                 </div>
-
-
                                                 <div class="voice-threshold-hint">
-                    Значение 34% подходит для поиска того же говорящего в других аудиозаписях.
-                    Если появляется слишком много ложных совпадений, порог можно повысить.
-                </div>
-
+                                                    Значение 34% подходит для поиска того же говорящего в других аудиозаписях.
+                                                    Если появляется слишком много ложных совпадений, порог можно повысить.
+                                                </div>
                                             </div>
-
                                         </details>
-
                                     </div>
-
                                 </div>
-
                             </div>
-
 
                             <div class="voice-start-row">
-
                                 <div class="voice-start-note">
-
                                     <i class="bi bi-shield-check"></i>
-
-                                    <span>
-                                        После запуска поиск продолжится
-                                        в фоне. Его можно будет
-                                        приостановить или отменить
-                                        в разделе «Текущая задача».
-                                    </span>
-
+                                    <span>После запуска поиск продолжится в фоне. Его можно будет приостановить или отменить в разделе «Текущая задача».</span>
                                 </div>
-
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-primary"
-                                    id="submitBtn"
-                                    disabled
-                                >
-                                    <i class="bi bi-search me-1"></i>
-                                    Начать поиск
+                                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                    <i class="bi bi-search me-1"></i> Начать поиск
                                 </button>
-
                             </div>
-
                         </form>
-
                     </div>
-
                 </div>
-
             </section>
 
-
-            <!-- =================================================
-                 TASK PANEL
-                 ================================================= -->
-
-            <section
-                class="voice-view"
-                data-voice-panel="task"
-                hidden
-            >
-
-                <div
-                    class="voice-task-empty"
-                    id="voiceTaskEmpty"
-                >
-
-                    <div class="voice-task-empty-icon">
-                        <i class="bi bi-activity"></i>
-                    </div>
-
-                    <h2>
-                        Активного поиска пока нет
-                    </h2>
-
-                    <p>
-                        Перейдите в «Новый поиск»,
-                        выберите голосовой образец
-                        и запустите поиск.
-                        Здесь появится прогресс задачи.
-                    </p>
-
+            <section class="voice-view" data-voice-panel="task" hidden>
+                <div class="voice-task-empty" id="voiceTaskEmpty">
+                    <div class="voice-task-empty-icon"><i class="bi bi-activity"></i></div>
+                    <h2>Активного поиска пока нет</h2>
+                    <p>Перейдите в «Новый поиск», выберите голосовой образец и запустите поиск. Здесь появится прогресс задачи.</p>
                 </div>
 
-
-                <div
-                    id="progress-container"
-                    style="display: none;"
-                >
-
+                <div id="progress-container" style="display: none;">
                     <div class="progress-header">
-
-                        <span id="progressStatusText">
-                            Подготовка к поиску...
-                        </span>
-
-                        <div
-                            class="timer-display"
-                            id="searchTimer"
-                        >
-                            00:00:00
-                        </div>
-
+                        <span id="progressStatusText">Подготовка к поиску...</span>
+                        <div class="timer-display" id="searchTimer">00:00:00</div>
                     </div>
-
-
                     <div class="progress-info">
-
-                        <span id="processedInfo">
-                            Обработано записей: 0
-                        </span>
-
-                        <span id="progressPercent">
-                            0%
-                        </span>
-
+                        <span id="processedInfo">Обработано записей: 0</span>
+                        <span id="progressPercent">0%</span>
                     </div>
-
-
                     <div class="progress-bar-wrapper">
-
-                        <div
-                            class="progress-bar-fill"
-                            id="progressBarFill"
-                        ></div>
-
+                        <div class="progress-bar-fill" id="progressBarFill"></div>
                     </div>
-
-
                     <div class="process-actions">
-
-                        <button
-                            type="button"
-                            class="btn-process btn-pause-task"
-                            id="pauseTaskBtn"
-                        >
-                            <i class="bi bi-pause-fill"></i>
-                            Приостановить
-                        </button>
-
-
-                        <button
-                            type="button"
-                            class="btn-process btn-resume-task"
-                            id="resumeTaskBtn"
-                        >
-                            <i class="bi bi-play-fill"></i>
-                            Возобновить
-                        </button>
-
-
-                        <button
-                            type="button"
-                            class="btn-process btn-cancel-task"
-                            id="cancelTaskBtn"
-                        >
-                            <i class="bi bi-stop-fill"></i>
-                            Остановить поиск
-                        </button>
-
+                        <button type="button" class="btn-process btn-pause-task" id="pauseTaskBtn"><i class="bi bi-pause-fill"></i> Приостановить</button>
+                        <button type="button" class="btn-process btn-resume-task" id="resumeTaskBtn"><i class="bi bi-play-fill"></i> Возобновить</button>
+                        <button type="button" class="btn-process btn-cancel-task" id="cancelTaskBtn"><i class="bi bi-stop-fill"></i> Остановить поиск</button>
                     </div>
-
                 </div>
 
+                <!-- Алерт о статусе (завершение / пауза / ошибка) -->
+                <div id="status-alert-container" class="mt-4"></div>
 
-                <div id="results-container"></div>
+                <!-- БЛОК ИДЕНТИФИКАЦИИ (Сверка с базой) -->
+                <div id="live-identity-container" class="mt-4" style="display: none;"></div>
 
+                <!-- Живой список найденных совпадений -->
+                <div id="live-matches-container" class="mt-4 d-flex flex-column gap-3"></div>
             </section>
-
         </main>
-
     </div>
-
 </div>
 
 <script>
+    // Базовые элементы
     const audioUpload = document.getElementById('audioUpload');
     const submitBtn = document.getElementById('submitBtn');
     const playSegmentBtn = document.getElementById('playSegmentBtn');
@@ -825,14 +271,16 @@
     const folderPathInput = document.getElementById('folderPath');
     const checkFolderBtn = document.getElementById('checkFolderBtn');
     const folderInfo = document.getElementById('folderInfo');
-
     const progressContainer = document.getElementById('progress-container');
     const progressBarFill = document.getElementById('progressBarFill');
     const progressPercent = document.getElementById('progressPercent');
     const progressStatusText = document.getElementById('progressStatusText');
     const processedInfo = document.getElementById('processedInfo');
     const searchTimerDisplay = document.getElementById('searchTimer');
-    const resultsContainer = document.getElementById('results-container');
+
+    const statusAlertContainer = document.getElementById('status-alert-container');
+    const liveIdentityContainer = document.getElementById('live-identity-container');
+    const liveMatchesContainer = document.getElementById('live-matches-container');
 
     const pauseTaskBtn = document.getElementById('pauseTaskBtn');
     const resumeTaskBtn = document.getElementById('resumeTaskBtn');
@@ -844,15 +292,16 @@
     let checkTimeHandler = null;
     let pollInterval = null;
     let activeVoiceJobId = null;
-
+    let renderedMatchesCount = 0;   
+    let identityRendered = false; // Флаг для одноразового рендера identity
     let timerInterval = null;
     let secondsElapsed = 0;
 
+    // Утилиты форматирования
     function formatTime(totalSeconds) {
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
-
         const pad = (n) => String(n).padStart(2, '0');
         return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     }
@@ -860,17 +309,25 @@
     function formatFinalTime(totalSeconds) {
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.round((totalSeconds % 3600) / 60);
-
         let parts = [];
-        if (hours > 0) {
-            parts.push(`${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'}`);
-        }
-        if (minutes > 0 || hours === 0) {
-            parts.push(`${minutes} ${minutes === 1 ? 'минута' : minutes < 5 ? 'минуты' : 'минут'}`);
-        }
+        if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'час' : hours < 5 ? 'часа' : 'часов'}`);
+        if (minutes > 0 || hours === 0) parts.push(`${minutes} ${minutes === 1 ? 'минута' : minutes < 5 ? 'минуты' : 'минут'}`);
         return parts.join(' ');
     }
 
+    function formatMatchTime(totalSeconds) {
+        const val = Math.max(0, parseFloat(totalSeconds) || 0);
+        const hours = Math.floor(val / 3600);
+        const minutes = Math.floor((val % 3600) / 60);
+        const seconds = (val % 60).toFixed(3);
+        const pad = (n) => String(n).padStart(2, '0');
+        const parts = String(seconds).split('.');
+        const secFmt = pad(parts[0]) + '.' + (parts[1] || '000').padEnd(3, '0');
+        if (hours > 0) return `${pad(hours)}:${pad(minutes)}:${secFmt}`;
+        return `${pad(minutes)}:${secFmt}`;
+    }
+
+    // Таймер
     function startTimer() {
         if (timerInterval) return;
         timerInterval = setInterval(() => {
@@ -892,10 +349,10 @@
         searchTimerDisplay.innerText = `⏱ 00:00:00`;
     }
 
+    // ---------- WaveSurfer ----------
     audioUpload.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         if (wavesurfer) wavesurfer.destroy();
 
         wavesurfer = WaveSurfer.create({
@@ -915,7 +372,6 @@
                 submitBtn.disabled = true;
                 return;
             }
-
             activeRegion = wsRegions.addRegion({
                 start: 0,
                 end: Math.min(3, totalDuration),
@@ -923,7 +379,6 @@
                 resize: true,
                 drag: true,
             });
-
             updateRegionInfo(activeRegion);
             submitBtn.disabled = false;
             playSegmentBtn.disabled = false;
@@ -966,17 +421,19 @@
 
     pauseSegmentBtn.addEventListener('click', () => wavesurfer && wavesurfer.pause());
     stopSegmentBtn.addEventListener('click', () => {
-        if (wavesurfer) { wavesurfer.pause(); wavesurfer.setTime(activeRegion.start); }
+        if (wavesurfer) {
+            wavesurfer.pause();
+            wavesurfer.setTime(activeRegion.start);
+        }
     });
 
+    // ---------- Проверка папки ----------
     checkFolderBtn.addEventListener('click', async () => {
         const pathVal = folderPathInput.value.trim();
         if (!pathVal) { alert('Введите путь к папке!'); return; }
-
         folderInfo.innerHTML = '⏳ Проверяем папку...';
         const formData = new FormData();
         formData.append('folder_path', pathVal);
-
         const resp = await fetch('/api/check_folder', { method: 'POST', body: formData });
         const data = await resp.json();
         if (data.error) {
@@ -986,6 +443,188 @@
         }
     });
 
+    // ---------- Функция рендера Identity блока ----------
+    function renderIdentityBlock(identity, candidates) {
+        if (!identity) return;
+
+        let hasConflict = false;
+        if (candidates && candidates.length > 0) {
+            hasConflict = candidates.some(c => c.data_conflict);
+        }
+
+        const needsReview = (identity.status === 'ambiguous' || hasConflict);
+        
+        let identityClass = '';
+        if (needsReview) identityClass = 'ambiguous';
+        else if (identity.status === 'identified') identityClass = 'identified';
+
+        let nameHtml = '';
+        let noteHtml = '';
+        let badgeHtml = '';
+
+        // Заголовки и бейджи
+        if (needsReview) {
+            nameHtml = 'Точного владельца голоса определить нельзя';
+            noteHtml = hasConflict 
+                ? 'Голос найден в базе, но в данных о владельце есть противоречия. Ниже показаны все подходящие варианты.'
+                : 'В голосовой базе найдено несколько похожих профилей. Для точного вывода сравните эталонные записи.';
+            badgeHtml = '<span class="vr-user-status-badge warning">Нужна проверка</span>';
+        } else if (identity.status === 'identified') {
+            nameHtml = 'Вероятный владелец голоса';
+            noteHtml = 'Один из профилей в базе заметно лучше совпадает с искомым голосом.';
+            badgeHtml = '<span class="vr-user-status-badge success">Есть вероятный кандидат</span>';
+        } else if (identity.status === 'no_profiles') {
+            nameHtml = 'Голосовая база пока пуста';
+            noteHtml = 'В базе нет эталонных записей для сравнения.';
+        } else {
+            nameHtml = 'Владелец голоса не найден';
+            noteHtml = 'Ни один профиль в голосовой базе не дал достаточного совпадения.';
+        }
+
+        let html = `
+            <section class="vr-identity ${identityClass}">
+                <div class="vr-identity-header">
+                    <div class="vr-identity-main">
+                        <div class="vr-identity-icon">&#128100;</div>
+                        <div>
+                            <div class="vr-identity-eyebrow">Сверка с голосовой базой</div>
+                            <div class="vr-identity-name">${nameHtml}</div>
+                            ${identity.status === 'identified' ? `<div class="vr-identity-person">${identity.full_name || 'Профиль без ФИО'}</div>` : ''}
+                            <div class="vr-identity-note">${noteHtml}</div>
+                        </div>
+                    </div>
+                    <div class="vr-user-status">${badgeHtml}</div>
+                </div>
+        `;
+
+        // Кандидаты
+        if (candidates && candidates.length > 0) {
+            html += `
+                <div class="vr-candidates">
+                    <div class="vr-candidates-heading">Кому может принадлежать голос</div>
+                    <div class="vr-candidate-intro">
+                        Профили расположены от более похожего голоса к менее похожему. Вы можете прослушать каждый эталон.
+                    </div>
+            `;
+
+            candidates.forEach((candidate, index) => {
+                const isPrimary = index === 0 ? 'primary' : '';
+                const candidateDelta = candidate.similarity - identity.threshold;
+                
+                let matchLevelHtml = '';
+                if (candidateDelta >= 0.15) {
+                    matchLevelHtml = '<span class="vr-match-level-badge strong">Сильное совпадение</span>';
+                } else if (candidateDelta >= 0.07) {
+                    matchLevelHtml = '<span class="vr-match-level-badge medium">Заметное совпадение</span>';
+                } else {
+                    matchLevelHtml = '<span class="vr-match-level-badge possible">Возможное совпадение</span>';
+                }
+
+                html += `
+                    <article class="vr-candidate ${isPrimary}">
+                        <div class="vr-candidate-top">
+                            <div class="vr-candidate-main">
+                                <div class="vr-candidate-rank">Вариант ${index + 1}</div>
+                                <div class="vr-candidate-name">
+                                    ${candidate.data_conflict ? 'Данные профиля требуют проверки' : (candidate.full_name || 'Профиль без ФИО')}
+                                </div>
+                                <div class="vr-candidate-meta">
+                                    <span>ИИН: ${candidate.un || '—'}</span>
+                                    ${candidate.phone ? `<span>Телефон: ${candidate.phone}</span>` : ''}
+                                </div>
+                `;
+
+                if (candidate.data_conflict && candidate.profile_variants) {
+                    html += `
+                        <div class="vr-profile-conflict">
+                            <div class="vr-profile-conflict-title">Для этого ИИН в базе указаны разные ФИО:</div>
+                            ${candidate.profile_variants.map(p => `<div class="vr-profile-conflict-item">${p.full_name || 'Без ФИО'}</div>`).join('')}
+                            <div class="vr-profile-conflict-help">Эти записи имеют один ИИН, поэтому SonAr не выбирает одно ФИО автоматически.</div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                            </div>
+                            <div class="vr-match-level">${matchLevelHtml}</div>
+                        </div>
+                `;
+
+                if (candidate.voiceprints && candidate.voiceprints.length > 0) {
+                    html += `
+                        <div class="vr-candidate-voiceprints">
+                            <div class="vr-candidate-voiceprints-title">Записи голоса из базы</div>
+                    `;
+                    candidate.voiceprints.forEach((vp, vpIndex) => {
+                        html += `
+                            <div class="vr-reference-row">
+                                <div class="vr-reference-info">
+                                    <div>
+                                        <span class="vr-reference-number">Образец голоса ${vpIndex + 1}</span>
+                                        ${vp.full_name ? `<div class="vr-reference-person">${vp.full_name}</div>` : ''}
+                                    </div>
+                                </div>
+                                ${vp.audio_url ? `<audio class="vr-reference-audio" controls preload="metadata" src="${vp.audio_url}"></audio>` : ''}
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                html += `
+                        <details class="vr-tech-details">
+                            <summary>Технические данные</summary>
+                            <div class="vr-tech-grid">
+                                <div><span>Биометрический score</span><strong>${candidate.similarity ? candidate.similarity.toFixed(4) : '—'}</strong></div>
+                                <div><span>Порог</span><strong>${identity.threshold ? identity.threshold.toFixed(4) : '—'}</strong></div>
+                                <div><span>Количество эталонов</span><strong>${candidate.voiceprints_count || 0}</strong></div>
+                            </div>
+                            <p class="vr-tech-note">Score — это внутренний показатель сходства голосовых признаков. Это не процент вероятности личности.</p>
+                        </details>
+                    </article>
+                `;
+            });
+
+            html += `</div>`; // .vr-candidates
+        }
+
+        if (needsReview) {
+            html += `
+                <div class="vr-ambiguity-note">
+                    <strong>Что делать?</strong>
+                    <span>Прослушайте образцы голоса и сравните их с найденным фрагментом ниже. SonAr специально не выбирает одного человека, если результат неоднозначен.</span>
+                </div>
+            `;
+        }
+
+        // Глобальная техническая инфа
+        html += `
+                <details class="vr-global-tech">
+                    <summary>Показать техническую информацию</summary>
+                    <div class="vr-tech-grid">
+                        <div><span>Лучший score</span><strong>${identity.similarity != null ? identity.similarity.toFixed(4) : '—'}</strong></div>
+                        <div><span>Порог идентификации</span><strong>${identity.threshold ? identity.threshold.toFixed(4) : '—'}</strong></div>
+                        <div><span>Разница между лучшими</span><strong>${identity.score_gap != null ? identity.score_gap.toFixed(4) : '—'}</strong></div>
+                    </div>
+                </details>
+            </section>
+        `;
+
+        liveIdentityContainer.innerHTML = html;
+        liveIdentityContainer.style.display = 'block';
+
+        // Добавляем логику паузы других плееров при запуске эталонов
+        const referenceAudios = liveIdentityContainer.querySelectorAll('.vr-reference-audio');
+        referenceAudios.forEach(audio => {
+            audio.addEventListener('play', () => {
+                document.querySelectorAll('audio').forEach(a => {
+                    if (a !== audio) a.pause();
+                });
+            });
+        });
+    }
+
+    // ---------- Запуск поиска + поллинг ----------
     document.getElementById('voiceSearchForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -993,18 +632,23 @@
             clearInterval(pollInterval);
             pollInterval = null;
         }
-
         activeVoiceJobId = null;
+        renderedMatchesCount = 0;
+        
+        // Сбрасываем Identity при новом запуске
+        identityRendered = false;
+        liveIdentityContainer.style.display = 'none';
+        liveIdentityContainer.innerHTML = '';
 
         submitBtn.disabled = true;
         progressContainer.style.display = 'block';
-        resultsContainer.innerHTML = '';
 
-        // Разблокируем кнопки управления на случай повторного запуска
+        statusAlertContainer.innerHTML = '';
+        liveMatchesContainer.innerHTML = '';
+
         pauseTaskBtn.disabled = false;
         resumeTaskBtn.disabled = false;
         cancelTaskBtn.disabled = false;
-
         pauseTaskBtn.style.display = 'inline-block';
         resumeTaskBtn.style.display = 'none';
 
@@ -1019,26 +663,14 @@
         formData.append('threshold', thresholdInput.value);
 
         const resp = await fetch('/api/search_voice', { method: 'POST', body: formData });
-
         let data = {};
-
-        try {
-            data = await resp.json();
-        } catch (_) {
-            data = {};
-        }
+        try { data = await resp.json(); } catch (_) {}
 
         if (!resp.ok || data.error) {
             pauseTimer();
             progressContainer.style.display = 'none';
             submitBtn.disabled = false;
-
-            alert(
-                data.detail ||
-                data.error ||
-                'Не удалось запустить голосовой поиск.'
-            );
-
+            alert(data.detail || data.error || 'Не удалось запустить голосовой поиск.');
             return;
         }
 
@@ -1046,11 +678,7 @@
             pauseTimer();
             progressContainer.style.display = 'none';
             submitBtn.disabled = false;
-
-            alert(
-                'Сервер не вернул job_id для голосового поиска.'
-            );
-
+            alert('Сервер не вернул job_id для голосового поиска.');
             return;
         }
 
@@ -1059,399 +687,288 @@
 
         pollInterval = setInterval(async () => {
             try {
-                const statusResp = await fetch(
-                    `/api/search_progress/${encodeURIComponent(jobId)}`
-                );
+                const statusResp = await fetch(`/api/search_progress/${encodeURIComponent(jobId)}`);
                 const status = await statusResp.json();
+                if (!statusResp.ok) return;
 
-                if (!statusResp.ok) {
-                    console.error(
-                        "Search progress request failed:",
-                        status
-                    );
-                    return;
-                }
-
+                // Обновление прогресс-бара
                 if (status.total > 0) {
-                    const rawPercent = Math.round(
-                        (status.processed / status.total) * 100
-                    );
-
-                    const percent = Math.min(
-                        100,
-                        Math.max(0, rawPercent)
-                    );
-
+                    const rawPercent = Math.round((status.processed / status.total) * 100);
+                    const percent = Math.min(100, Math.max(0, rawPercent));
                     progressBarFill.style.width = percent + '%';
                     progressPercent.innerText = percent + '%';
-
-                    processedInfo.innerText =
-                        `\u041e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439: ${status.processed} \u0438\u0437 ${status.total}`;
+                    processedInfo.innerText = `Обработано записей: ${status.processed} из ${status.total}`;
                 }
 
                 if (status.status === 'running') {
-                    progressStatusText.innerText =
-                        '\u0421\u043a\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u0430\u043f\u043a\u0438...';
-
+                    progressStatusText.innerText = 'Сканирование папки...';
                     startTimer();
-                }
-
-                if (status.status === 'paused') {
-                    progressStatusText.innerText =
-                        '\u23F8 \u041f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
-
+                } else if (status.status === 'paused') {
+                    progressStatusText.innerText = '⏸ Поиск приостановлен.';
                     pauseTimer();
-                }
-
-                if (status.status === 'cancel_requested') {
-                    progressStatusText.innerText =
-                        '\u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...';
-
+                } else if (status.status === 'cancel_requested') {
+                    progressStatusText.innerText = '⏹ Останавливаем поиск...';
                     pauseTimer();
-
                     pauseTaskBtn.disabled = true;
                     resumeTaskBtn.disabled = true;
                     cancelTaskBtn.disabled = true;
                 }
 
-                const isCompleted =
-                    status.status === 'completed';
+                // ===== РЕАЛТАЙМ-ВЫВОД ИДЕНТИФИКАЦИИ =====
+                if (status.identity && !identityRendered) {
+                    renderIdentityBlock(status.identity, status.identity_candidates || []);
+                    identityRendered = true; // Рисуем один раз
+                }
 
-                const isCancelled =
-                    status.status === 'cancelled';
+                // ===== РЕАЛТАЙМ-ВЫВОД БОГАТЫХ КАРТОЧЕК =====
+                if (status.matches && status.matches.length > renderedMatchesCount) {
+                    const newMatches = status.matches.slice(renderedMatchesCount);
 
-                const isPaused =
-                    status.status === 'paused';
+                    newMatches.forEach((match, index) => {
+                        const cardWrapper = document.createElement('div');
+                        cardWrapper.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                        cardWrapper.style.opacity = '0';
+                        cardWrapper.style.transform = 'translateY(15px)';
 
-                const isError =
-                    status.status === 'error';
+                        const sim = (match.similarity || 0).toFixed(2);
+                        let simLabel = 'Выше установленного порога';
+                        if (sim >= 90) simLabel = 'Очень высокое сходство';
+                        else if (sim >= 80) simLabel = 'Высокое сходство';
 
-                if (
-                    status.results_url &&
-                    (
-                        isPaused ||
-                        isCompleted ||
-                        isCancelled ||
-                        isError
-                    )
-                ) {
+                        const startLabel = formatMatchTime(match.start);
+                        const endLabel = formatMatchTime(match.end);
+                        const duration = (match.duration || 0).toFixed(3);
+                        
+                        const audioUrl = `/results/job_${jobId}/audio/${encodeURIComponent(match.stored_name || '')}`;
+                        const audioId = `live-audio-${jobId}-${renderedMatchesCount + index}`;
+
+                        // Структура на базе .vr-match из sonar-voice-results.css
+                        cardWrapper.innerHTML = `
+                            <article class="vr-match" style="margin-bottom: 0;">
+                                <div class="vr-match-top">
+                                    <div>
+                                        <div class="vr-match-kicker">Новое совпадение</div>
+                                        <div class="vr-match-name">${match.file_name || 'Без имени'}</div>
+                                    </div>
+                                    <div class="vr-score">
+                                        <div class="vr-score-value">${sim}%</div>
+                                        <div class="vr-score-label">${simLabel}</div>
+                                    </div>
+                                </div>
+                                <div class="vr-match-body">
+                                    <div class="vr-time-grid">
+                                        <div class="vr-time-card">
+                                            <div class="vr-time-label">Голос найден в записи</div>
+                                            <div class="vr-time-value">${startLabel} → ${endLabel}</div>
+                                        </div>
+                                        <div class="vr-time-card">
+                                            <div class="vr-time-label">Длительность фрагмента</div>
+                                            <div class="vr-time-value">${duration} сек.</div>
+                                        </div>
+                                    </div>
+                                    <div class="vr-player-panel">
+                                        <div class="vr-player-actions">
+                                            <button 
+                                                type="button" 
+                                                class="vr-fragment-button live-play-btn" 
+                                                data-audio-id="${audioId}" 
+                                                data-start="${match.start}" 
+                                                data-end="${match.end}"
+                                            >
+                                                ▶ Прослушать найденный фрагмент
+                                            </button>
+                                        </div>
+                                        <audio id="${audioId}" class="vr-audio" controls preload="metadata" src="${audioUrl}"></audio>
+                                    </div>
+                                    <div class="vr-path-block">
+                                        <div class="vr-path-label">Исходная запись</div>
+                                        <div class="vr-path">${match.source_path || 'Неизвестно'}</div>
+                                    </div>
+                                </div>
+                            </article>
+                        `;
+
+                        liveMatchesContainer.insertBefore(cardWrapper, liveMatchesContainer.firstChild);
+
+                        const playBtn = cardWrapper.querySelector('.live-play-btn');
+                        const audioEl = cardWrapper.querySelector('audio');
+                        
+                        if (playBtn && audioEl) {
+                            playBtn.addEventListener('click', async () => {
+                                const start = Number(playBtn.dataset.start || 0);
+                                const end = Number(playBtn.dataset.end || 0);
+
+                                document.querySelectorAll('audio').forEach(a => {
+                                    if (a !== audioEl) a.pause();
+                                });
+
+                                if (audioEl._stopHandler) {
+                                    audioEl.removeEventListener('timeupdate', audioEl._stopHandler);
+                                }
+
+                                audioEl._stopHandler = () => {
+                                    if (audioEl.currentTime >= end) {
+                                        audioEl.pause();
+                                        audioEl.removeEventListener('timeupdate', audioEl._stopHandler);
+                                        audioEl._stopHandler = null;
+                                    }
+                                };
+
+                                audioEl.addEventListener('timeupdate', audioEl._stopHandler);
+                                audioEl.currentTime = start;
+                                
+                                try {
+                                    await audioEl.play();
+                                } catch (error) {
+                                    console.error('Fragment playback failed:', error);
+                                }
+                            });
+                            
+                            // Страховка для ручного запуска плеера
+                            audioEl.addEventListener('play', () => {
+                                document.querySelectorAll('audio').forEach(a => {
+                                    if (a !== audioEl) a.pause();
+                                });
+                            });
+                        }
+
+                        setTimeout(() => {
+                            cardWrapper.style.opacity = '1';
+                            cardWrapper.style.transform = 'translateY(0)';
+                        }, 50);
+                    });
+
+                    renderedMatchesCount = status.matches.length;
+                }
+
+                // ===== ФИНАЛЬНЫЙ АЛЕРТ =====
+                const isCompleted = status.status === 'completed';
+                const isCancelled = status.status === 'cancelled';
+                const isPaused = status.status === 'paused';
+                const isError = status.status === 'error';
+
+                if (status.results_url && (isPaused || isCompleted || isCancelled || isError)) {
                     let title = '';
                     let boxStyle = '';
                     let timeMessage = '';
 
                     if (isCompleted) {
-                        title =
-                            '\u041f\u043e\u0438\u0441\u043a \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d!';
-
+                        title = 'Поиск успешно завершён!';
                         pauseTimer();
-
-                        const totalFormatted =
-                            formatFinalTime(secondsElapsed);
-
-                        timeMessage =
-                            `<br>\u0417\u0430\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f: <b>${totalFormatted}</b>`;
+                        timeMessage = `<br>Затраченное время: <b>${formatFinalTime(secondsElapsed)}</b>`;
                     }
-
                     if (isCancelled) {
-                        title =
-                            '\u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c';
-
+                        title = 'Поиск остановлен пользователем';
                         pauseTimer();
-
-                        const totalFormatted =
-                            formatFinalTime(secondsElapsed);
-
-                        timeMessage =
-                            `<br>\u0417\u0430\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f: <b>${totalFormatted}</b>`;
-
-                        boxStyle =
-                            'background: #fff7ed; border-color: #f97316; color: #9a3412;';
+                        timeMessage = `<br>Затраченное время: <b>${formatFinalTime(secondsElapsed)}</b>`;
+                        boxStyle = 'background: #fff7ed; border-color: #f97316; color: #9a3412;';
                     }
-
                     if (isPaused) {
-                        title =
-                            '\u041f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c';
-
-                        boxStyle =
-                            'background: #fffbeb; border-color: #f59e0b; color: #b45309;';
+                        title = 'Поиск приостановлен пользователем';
+                        boxStyle = 'background: #fffbeb; border-color: #f59e0b; color: #b45309;';
                     }
-
                     if (isError) {
-                        title =
-                            'Поиск завершился с ошибкой';
-
-                        boxStyle =
-                            'background: #fef2f2; border-color: #ef4444; color: #991b1b;';
-
+                        title = 'Поиск завершился с ошибкой';
+                        boxStyle = 'background: #fef2f2; border-color: #ef4444; color: #991b1b;';
                         pauseTimer();
                     }
 
-                    resultsContainer.innerHTML = `
-                        <div
-                            class="status-box-success"
-                            style="${boxStyle}"
-                        >
-                            <strong style="font-size: 16px;">
-                                ${title}
-                            </strong>
-
-                            <br><br>
-
-                            \u041e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439:
-                            <b>${status.processed} \u0438\u0437 ${status.total}</b>
-
+                    statusAlertContainer.innerHTML = `
+                        <div class="status-box-success" style="${boxStyle}">
+                            <strong style="font-size: 16px;">${title}</strong><br><br>
+                            Обработано записей: <b>${status.processed} из ${status.total}</b>
                             ${timeMessage}
-
                             <br><br>
-
-                            <a
-                                href="${status.results_url}"
-                                target="_blank"
-                                class="btn"
-                            >
-                                &#128194; \u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043f\u0430\u043f\u043a\u0443 \u0441 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430\u043c\u0438
+                            <a href="${status.results_url}" target="_blank" class="btn btn-primary btn-sm">
+                                📂 Открыть папку с результатами
                             </a>
                         </div>
                     `;
                 }
 
-                if (
-                    isCompleted ||
-                    isCancelled ||
-                    isError
-                ) {
+                // Завершение поллинга
+                if (isCompleted || isCancelled || isError) {
                     clearInterval(pollInterval);
                     pollInterval = null;
-
                     pauseTimer();
-
                     submitBtn.disabled = false;
-
                     pauseTaskBtn.disabled = true;
                     resumeTaskBtn.disabled = true;
                     cancelTaskBtn.disabled = true;
+                    pauseTaskBtn.style.display = 'inline-block';
+                    resumeTaskBtn.style.display = 'none';
 
-                    pauseTaskBtn.style.display =
-                        'inline-block';
+                    if (isCompleted) progressStatusText.innerText = '✅ Поиск завершён.';
+                    else if (isCancelled) progressStatusText.innerText = '⏹ Поиск остановлен.';
+                    else progressStatusText.innerText = '❌ Поиск завершился с ошибкой.';
 
-                    resumeTaskBtn.style.display =
-                        'none';
-
-                    if (isCompleted) {
-                        progressStatusText.innerText =
-                            '\u2705 \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.';
-                    } else if (isCancelled) {
-                        progressStatusText.innerText =
-                            '\u23F9 \u041f\u043e\u0438\u0441\u043a \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.';
-                    } else {
-                        progressStatusText.innerText =
-                            '\u274c \u041f\u043e\u0438\u0441\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0441\u044f \u0441 \u043e\u0448\u0438\u0431\u043a\u043e\u0439.';
-                    }
-
-                    if (activeVoiceJobId === jobId) {
-                        activeVoiceJobId = null;
-                    }
+                    if (activeVoiceJobId === jobId) activeVoiceJobId = null;
                 }
-
             } catch (err) {
-                console.error(
-                    "Search progress polling error:",
-                    err
-                );
+                console.error("Search progress polling error:", err);
             }
         }, 1000);
     });
 
+    // ---------- Пауза / Возобновление / Отмена ----------
     pauseTaskBtn.addEventListener('click', async () => {
-        const jobId = activeVoiceJobId;
-
-        if (!jobId) {
-            return;
-        }
-
+        if (!activeVoiceJobId) return;
         try {
-            const response = await fetch(
-                `/api/search_pause/${encodeURIComponent(jobId)}`,
-                {
-                    method: 'POST'
-                }
-            );
-
-            let data = {};
-
-            try {
-                data = await response.json();
-            } catch (_) {
-                data = {};
-            }
-
-            if (!response.ok) {
-                alert(
-                    data.detail ||
-                    data.error ||
-                    'Не удалось приостановить поиск.'
-                );
-
-                return;
-            }
-
+            const response = await fetch(`/api/search_pause/${encodeURIComponent(activeVoiceJobId)}`, { method: 'POST' });
+            if (!response.ok) { alert('Не удалось приостановить поиск.'); return; }
             pauseTimer();
             pauseTaskBtn.style.display = 'none';
             resumeTaskBtn.style.display = 'inline-block';
-
         } catch (err) {
-            console.error(
-                'Search pause error:',
-                err
-            );
+            console.error('Search pause error:', err);
         }
     });
 
     resumeTaskBtn.addEventListener('click', async () => {
-        const jobId = activeVoiceJobId;
-
-        if (!jobId) {
-            return;
-        }
-
+        if (!activeVoiceJobId) return;
         try {
-            const response = await fetch(
-                `/api/search_resume/${encodeURIComponent(jobId)}`,
-                {
-                    method: 'POST'
-                }
-            );
-
-            let data = {};
-
-            try {
-                data = await response.json();
-            } catch (_) {
-                data = {};
-            }
-
-            if (!response.ok) {
-                alert(
-                    data.detail ||
-                    data.error ||
-                    'Не удалось возобновить поиск.'
-                );
-
-                return;
-            }
-
+            const response = await fetch(`/api/search_resume/${encodeURIComponent(activeVoiceJobId)}`, { method: 'POST' });
+            if (!response.ok) { alert('Не удалось возобновить поиск.'); return; }
             startTimer();
             resumeTaskBtn.style.display = 'none';
             pauseTaskBtn.style.display = 'inline-block';
-            resultsContainer.innerHTML = '';
-
+            statusAlertContainer.innerHTML = '';
         } catch (err) {
-            console.error(
-                'Search resume error:',
-                err
-            );
+            console.error('Search resume error:', err);
         }
     });
 
     cancelTaskBtn.addEventListener('click', async () => {
-        const confirmed = confirm(
-            '\u0412\u044b \u0443\u0432\u0435\u0440\u0435\u043d\u044b, \u0447\u0442\u043e \u0445\u043e\u0442\u0438\u0442\u0435 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a? ' +
-            '\u0423\u0436\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u044b\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.'
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        const jobId = activeVoiceJobId;
-
-        if (!jobId) {
-            return;
-        }
+        if (!confirm('Вы уверены, что хотите остановить поиск? Уже найденные совпадения будут сохранены.')) return;
+        if (!activeVoiceJobId) return;
 
         try {
             cancelTaskBtn.disabled = true;
             pauseTaskBtn.disabled = true;
             resumeTaskBtn.disabled = true;
-
-            progressStatusText.innerText =
-                '\u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...';
-
+            progressStatusText.innerText = '⏹ Останавливаем поиск...';
             pauseTimer();
 
-            const response = await fetch(
-                `/api/search_cancel/${encodeURIComponent(jobId)}`,
-                {
-                    method: 'POST'
-                }
-            );
-
-            let data = {};
-
-            try {
-                data = await response.json();
-            } catch (_) {
-                data = {};
-            }
-
-            if (response.status === 409) {
-                progressStatusText.innerText =
-                    '\u041f\u043e\u0438\u0441\u043a \u0443\u0436\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d.';
-
-                return;
-            }
-
+            const response = await fetch(`/api/search_cancel/${encodeURIComponent(activeVoiceJobId)}`, { method: 'POST' });
+            if (response.status === 409) return;
             if (!response.ok) {
                 cancelTaskBtn.disabled = false;
-
-                alert(
-                    data.detail ||
-                    data.error ||
-                    '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a.'
-                );
-
+                alert('Не удалось остановить поиск.');
                 return;
             }
 
-            resultsContainer.innerHTML = `
-                <div
-                    class="status-box-success"
-                    style="
-                        background: #fff7ed;
-                        border-color: #f97316;
-                        color: #9a3412;
-                    "
-                >
-                    <strong>
-                        \u23F9 \u041e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u043c \u043f\u043e\u0438\u0441\u043a...
-                    </strong>
-
-                    <br><br>
-
-                    \u041e\u0436\u0438\u0434\u0430\u0435\u043c \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438.
-                    \u0423\u0436\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u044b\u0435 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b \u0431\u0443\u0434\u0443\u0442 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.
+            statusAlertContainer.innerHTML = `
+                <div class="status-box-success" style="background: #fff7ed; border-color: #f97316; color: #9a3412;">
+                    <strong>⏹ Останавливаем поиск...</strong><br><br>
+                    Ожидаем завершения текущей операции.
                 </div>
             `;
-
         } catch (err) {
-            console.error(
-                "Search cancellation error:",
-                err
-            );
-
             cancelTaskBtn.disabled = false;
-
-            alert(
-                '\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f \u043f\u0440\u0438 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0435 \u043f\u043e\u0438\u0441\u043a\u0430.'
-            );
+            alert('Ошибка соединения при остановке поиска.');
         }
     });
-
 </script>
-
-<script
-    src="{{ url_for('static', path='js/voice-workspace.js') }}"
-></script>
-
+<script src="{{ url_for('static', path='js/voice-workspace.js') }}"></script>
 </body>
 </html>

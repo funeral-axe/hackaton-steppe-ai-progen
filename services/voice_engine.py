@@ -46,7 +46,6 @@ def get_current_session_dir():
   return _current_session_dir
 
 
-
 def init_worker(
     shared_counter=None,
     lock=None,
@@ -427,6 +426,7 @@ def run_background_voice_search(
     pause_event=None,
     cancel_event=None,
     results_dir=None,
+    on_match_found=None,  # колбэк для реалтайма
 ):
   """Multiprocess voice search with cooperative cancellation."""
   global _current_session_dir
@@ -673,17 +673,40 @@ def run_background_voice_search(
                   3,
               )
 
-              matched_files.append(
-                  {
-                      "file_name": file_name,
-                      "source_path": source_path,
-                      "stored_name": stored_name,
-                      "similarity": float(score),
-                      "start": match_start,
-                      "end": match_end,
-                      "duration": match_duration,
-                  }
-              )
+              match_dict = {
+                  "file_name": file_name,
+                  "source_path": source_path,
+                  "stored_name": stored_name,
+                  "similarity": float(score),
+                  "start": match_start,
+                  "end": match_end,
+                  "duration": match_duration,
+              }
+
+              # -------------------------------------------------
+              # Место для identity (если когда-нибудь будешь
+              # передавать результат идентификации сюда).
+              # Сейчас identity считается в другом месте
+              # (voice_jobs / voice_identity), поэтому здесь
+              # оставляем только заготовку.
+              #
+              # Пример будущего использования:
+              # if identity_result and identity_result.get("status") == "identified":
+              #     match_dict["identity"] = {
+              #         "full_name": identity_result.get("full_name"),
+              #         "iin": identity_result.get("iin") or identity_result.get("un"),
+              #         "phone": identity_result.get("phone"),
+              #     }
+              # -------------------------------------------------
+
+              matched_files.append(match_dict)
+
+              # Вызываем коллбэк для реалтайма
+              if on_match_found:
+                  try:
+                      on_match_found(match_dict)
+                  except Exception as e:
+                      print(f"on_match_found error: {e}")
 
               print(
                   f"Match found: {file_name} "

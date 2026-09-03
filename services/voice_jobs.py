@@ -4,7 +4,7 @@ import uuid
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 
 ACTIVE_STATUSES = {
@@ -39,6 +39,13 @@ class VoiceSearchJob:
     results_dir: Optional[str] = None
     error: Optional[str] = None
 
+    # Реалтайм-совпадения
+    matches: list = field(default_factory=list)
+
+    # === НОВОЕ: результат сверки с голосовой базой ===
+    identity: Optional[dict] = None
+    identity_candidates: list = field(default_factory=list)
+
     created_at: datetime = field(
         default_factory=utc_now
     )
@@ -71,7 +78,6 @@ class VoiceSearchJob:
                 folder_name = os.path.basename(
                     self.results_dir
                 )
-
                 results_url = (
                     f"/results/{folder_name}/"
                 )
@@ -86,6 +92,10 @@ class VoiceSearchJob:
                 "results_dir": self.results_dir,
                 "results_url": results_url,
                 "error": self.error,
+                "matches": list(self.matches),
+                # === НОВОЕ ===
+                "identity": self.identity,
+                "identity_candidates": list(self.identity_candidates),
                 "created_at": self.created_at.isoformat(),
                 "started_at": (
                     self.started_at.isoformat()
@@ -98,6 +108,20 @@ class VoiceSearchJob:
                     else None
                 ),
             }
+
+    def add_match(self, match_data: dict):
+        """Потокобезопасное добавление совпадения."""
+        with self._lock:
+            self.matches.append(match_data)
+
+    def set_identity(self, identity_data: Optional[dict], candidates: Optional[List] = None):
+        """Сохраняет результат сверки с голосовой базой (потокобезопасно)."""
+        with self._lock:
+            self.identity = identity_data
+            if candidates is not None:
+                self.identity_candidates = list(candidates)
+            else:
+                self.identity_candidates = []
 
     def attach_controls(
         self,
@@ -147,6 +171,9 @@ class VoiceSearchJob:
             self.error = None
             self.started_at = utc_now()
             self.finished_at = None
+            self.matches = []          # очищаем совпадения
+            self.identity = None       # очищаем identity
+            self.identity_candidates = []
 
             return True
 
