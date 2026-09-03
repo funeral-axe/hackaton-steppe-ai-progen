@@ -14,11 +14,9 @@
     flex-direction: column;
 
     background:
-        linear-gradient(
-            180deg,
+        linear-gradient(180deg,
             #0f172a 0%,
-            #111c31 100%
-        );
+            #111c31 100%);
 
     color: #ffffff;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
@@ -51,11 +49,9 @@
     border-radius: 13px;
 
     background:
-        linear-gradient(
-            135deg,
+        linear-gradient(135deg,
             #3b82f6,
-            #2563eb
-        );
+            #2563eb);
 
     box-shadow:
         0 10px 24px rgba(37, 99, 235, 0.28);
@@ -131,11 +127,9 @@
 .sidebar-nav a.active {
     color: #ffffff;
     background:
-        linear-gradient(
-            90deg,
+        linear-gradient(90deg,
             rgba(37, 99, 235, 0.22),
-            rgba(37, 99, 235, 0.10)
-        );
+            rgba(37, 99, 235, 0.10));
 
     box-shadow:
         inset 3px 0 0 #3b82f6;
@@ -221,242 +215,341 @@
     padding: 30px;
 }
 
+/* =========================================
+   СТРАНИЦА ВХОДА (ПРЕМИАЛЬНЫЙ SAAS ДИЗАЙН)
+   ========================================= */
 .login-body {
     min-height: 100vh;
     padding: 24px;
-
     display: grid;
     place-items: center;
-
-    background:
-        radial-gradient(
-            circle at 15% 15%,
-            rgba(37, 99, 235, 0.10),
-            transparent 30%
-        ),
-        radial-gradient(
-            circle at 85% 85%,
-            rgba(14, 165, 233, 0.08),
-            transparent 32%
-        ),
-        var(--sonar-bg);
+    background: #f8fafc;
+    /* Легкий, воздушный фон */
+    background-image: 
+        radial-gradient(circle at 0% 0%, rgba(37, 99, 235, 0.04), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.04), transparent 40%);
 }
 
 .login-shell {
     width: 100%;
-    max-width: 980px;
-    min-height: 580px;
-
+    max-width: 1040px;
+    min-height: 640px;
     display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-
-    overflow: hidden;
-
-    border: 1px solid var(--sonar-border);
-    border-radius: 28px;
-
+    grid-template-columns: 1fr 1fr;
+    
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 24px;
     background: var(--sonar-surface);
-
-    box-shadow: var(--sonar-shadow-lg);
+    box-shadow: 
+        0 4px 6px -1px rgba(15, 23, 42, 0.05),
+        0 24px 64px -12px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
 }
 
+/* --- Левая часть (Абстракция) --- */
 .login-visual {
     position: relative;
-    overflow: hidden;
-
-    padding: 54px;
-
+    padding: 48px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-
-    color: #ffffff;
-
-    background:
-        radial-gradient(
-            circle at 75% 20%,
-            rgba(59, 130, 246, 0.55),
-            transparent 32%
-        ),
-        linear-gradient(
-            145deg,
-            #0f172a,
-            #172554
-        );
+    background: #0a0f1c; /* Глубокий премиальный синий — виден, пока грузится фото, и как фолбэк */
+    overflow: hidden; /* обрезает размытые края фонового фото ниже */
 }
 
+/* Фоновая фотография — атмосферная подложка.
+   inset задан с запасом (-24px со всех сторон) + небольшой scale,
+   чтобы размытые (после filter: blur) края уходили под overflow:hidden
+   родителя и не создавали светлую окантовку по периметру блока. */
+.login-visual::before {
+    content: "";
+    position: absolute;
+    inset: -24px;
+    z-index: 0;
+
+    background-image: url("../images/login-bg.webp");
+    background-size: cover;
+    background-position: center 30%;
+    background-repeat: no-repeat;
+
+    filter: blur(3px) saturate(105%);
+    transform: scale(1.06); /* компенсирует "усадку" картинки от inset */
+
+    opacity: 1; /* приглушаем фото, чтобы не спорило с текстом и лого */
+}
+
+/* Затемняющий оверлей поверх фото — тёмный градиент + лёгкий синий
+   акцент в тон бренду. Ставится отдельным слоем над фото, но под
+   контентом (у .login-brand / .login-visual-content уже z-index: 2). */
 .login-visual::after {
     content: "";
     position: absolute;
-    right: -90px;
-    bottom: -100px;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
 
-    width: 320px;
-    height: 320px;
+    background:
+        linear-gradient(180deg,
+            rgba(10, 15, 28, 0.82) 0%,
+            rgba(10, 15, 28, 0.62) 45%,
+            rgba(10, 15, 28, 0.94) 100%),
+        radial-gradient(circle at 15% 15%,
+            rgba(37, 99, 235, 0.28),
+            transparent 55%);
+}
 
-    border: 1px solid rgba(255, 255, 255, 0.09);
+/* Декоративные orb/grid и контент должны рисоваться поверх фото+оверлея */
+.visual-ambient,
+.visual-grid {
+    z-index: 1;
+}
+
+.visual-ambient {
+    position: absolute;
     border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.45;
+    pointer-events: none;
+}
 
-    box-shadow:
-        0 0 0 55px rgba(255, 255, 255, 0.025),
-        0 0 0 110px rgba(255, 255, 255, 0.018);
+.visual-ambient.orb-1 {
+    top: -10%;
+    left: -10%;
+    width: 400px;
+    height: 400px;
+    background: #1e3a8a;
+}
+
+.visual-ambient.orb-2 {
+    bottom: -20%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: #2563eb;
+}
+
+.visual-grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    pointer-events: none;
 }
 
 .login-brand {
     position: relative;
-    z-index: 1;
-
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
 .login-brand-mark {
-    width: 46px;
-    height: 46px;
-
+    width: 42px;
+    height: 42px;
     display: grid;
     place-items: center;
-
-    border-radius: 14px;
-
-    background: #2563eb;
-
-    box-shadow:
-        0 12px 30px rgba(37, 99, 235, 0.35);
-
-    font-size: 1.35rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #ffffff;
+    box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.3),
+        0 8px 20px rgba(37, 99, 235, 0.4);
+    font-size: 1.25rem;
 }
 
 .login-brand-name {
-    font-size: 1.25rem;
-    font-weight: 760;
-    letter-spacing: 0.03em;
-}
-
-.login-message {
-    position: relative;
-    z-index: 1;
-
-    max-width: 420px;
-}
-
-.login-message h2 {
-    margin: 0 0 14px;
     color: #ffffff;
-    font-size: 2.2rem;
-    font-weight: 760;
-    line-height: 1.12;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
-.login-message p {
+.login-visual-content {
+    position: relative;
+    z-index: 2;
+    margin-top: auto;
+    margin-bottom: 20px;
+}
+
+/* Абстрактная звуковая волна */
+.abstract-wave {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 60px;
+    margin-bottom: 32px;
+}
+
+.abstract-wave span {
+    width: 6px;
+    background: linear-gradient(180deg, #60a5fa, #3b82f6);
+    border-radius: 99px;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+    animation: wave-bounce 1.5s ease-in-out infinite alternate;
+}
+
+.abstract-wave span:nth-child(1) { height: 40%; animation-delay: 0.0s; }
+.abstract-wave span:nth-child(2) { height: 80%; animation-delay: 0.2s; }
+.abstract-wave span:nth-child(3) { height: 100%; animation-delay: 0.4s; }
+.abstract-wave span:nth-child(4) { height: 60%; animation-delay: 0.6s; }
+.abstract-wave span:nth-child(5) { height: 30%; animation-delay: 0.8s; }
+
+@keyframes wave-bounce {
+    0% { transform: scaleY(0.5); opacity: 0.5; }
+    100% { transform: scaleY(1); opacity: 1; }
+}
+
+.visual-text h2 {
+    color: #ffffff;
+    font-size: 2rem;
+    font-weight: 750;
+    line-height: 1.15;
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
+}
+
+.visual-text p {
+    color: #94a3b8;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    max-width: 380px;
     margin: 0;
-    color: #b7c4d6;
-    font-size: 1rem;
-    line-height: 1.65;
 }
 
+/* --- Правая часть (Форма) --- */
 .login-panel {
-    padding: 54px;
-
+    padding: 64px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    background: #ffffff;
 }
 
 .login-card {
     width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
+    max-width: 360px;
 }
 
-.login-card h1 {
-    margin: 0 0 7px;
-    font-size: 1.9rem;
-    font-weight: 760;
+.login-header h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.04em;
+    margin: 0 0 8px;
 }
 
 .login-card-subtitle {
-    margin-bottom: 30px;
-    color: var(--sonar-text-secondary);
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+}
+
+/* Кастомные инпуты формы входа */
+.login-card .form-control {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: #0f172a;
+    transition: all 0.2s ease;
+}
+
+.login-card .form-control::placeholder {
+    color: #94a3b8;
+}
+
+.login-card .form-control:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.login-card .form-control:focus {
+    background: #ffffff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.login-card .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+/* Премиальная кнопка */
+.login-btn {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    border: 1px solid #1d4ed8;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: #ffffff;
+    box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.2),
+        0 4px 12px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s ease;
+}
+
+.login-btn:hover {
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.1),
+        0 6px 16px rgba(37, 99, 235, 0.3);
+    transform: translateY(-1px);
 }
 
 .login-mobile-logo {
     display: none;
-    margin-bottom: 25px;
+    margin-bottom: 32px;
 }
 
 .login-mobile-logo .login-brand-mark {
-    color: #ffffff;
+    box-shadow: none;
 }
 
+.login-mobile-logo .login-brand-name {
+    color: #0f172a;
+}
+
+/* --- Адаптив --- */
 @media (max-width: 991.98px) {
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 220ms ease;
-        box-shadow: 20px 0 45px rgba(15, 23, 42, 0.18);
-    }
-
-    .sidebar.open {
-        transform: translateX(0);
-    }
-
-    .main-content {
-        margin-left: 0;
-    }
-
-    .topbar {
-        padding: 0 20px;
-    }
-
-    .page-content {
-        padding: 22px 20px;
-    }
-
     .login-shell {
-        max-width: 520px;
-        min-height: 0;
         grid-template-columns: 1fr;
+        max-width: 480px;
+        min-height: auto;
     }
 
     .login-visual {
-        display: none;
+        display: none; /* Скрываем визуал на мобилках для чистоты */
     }
 
     .login-panel {
-        padding: 42px;
+        padding: 48px 32px;
     }
 
     .login-mobile-logo {
         display: flex;
         align-items: center;
-        gap: 11px;
+        gap: 12px;
     }
 }
 
 @media (max-width: 575.98px) {
-    .topbar {
-        height: 68px;
-        padding: 0 15px;
-    }
-
-    .page-content {
-        padding: 20px 14px;
-    }
-
-    .page-heading {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
     .login-body {
-        padding: 14px;
+        padding: 16px;
+        align-items: flex-start;
     }
 
     .login-shell {
-        border-radius: 22px;
+        border-radius: 20px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
     }
 
     .login-panel {
-        padding: 30px 24px;
+        padding: 40px 24px;
     }
 }
