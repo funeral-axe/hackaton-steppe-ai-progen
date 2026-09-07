@@ -360,44 +360,104 @@
     font-size: 0.78rem;
 }
 
-.user-capabilities {
-    margin-top: 26px;
-    padding: 18px 20px;
+/* =========================================
+   СТАТИСТИКА БАЗЫ ГОЛОСОВ
+   ========================================= */
+.voice-stats-card {
+    position: relative;
+    overflow: hidden;
+    margin-top: 32px;
+    padding: 24px 32px;
 
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 20px;
 
+    background: linear-gradient(145deg, #ffffff, #f8fafc);
     border: 1px solid var(--sonar-border);
-    border-radius: var(--sonar-radius-lg);
+    border-radius: var(--sonar-radius-xl);
+    box-shadow: var(--sonar-shadow-sm);
 
-    background: rgba(255, 255, 255, 0.72);
+    transition: box-shadow var(--sonar-transition), transform var(--sonar-transition);
 }
 
-.user-capabilities-title {
-    font-size: 0.83rem;
-    font-weight: 700;
+.voice-stats-card:hover {
+    box-shadow: var(--sonar-shadow);
+    transform: translateY(-2px);
 }
 
-.user-capabilities-list {
+.voice-stats-card::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.voice-stats-info {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    gap: 18px;
+    z-index: 1;
 }
 
-.capability {
-    padding: 6px 10px;
+.voice-stats-icon {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
 
-    border: 1px solid var(--sonar-border);
-    border-radius: 999px;
+    border-radius: 14px;
+    background: var(--sonar-primary-soft);
+    color: var(--sonar-primary);
 
-    background: #ffffff;
+    font-size: 1.45rem;
+}
 
+.voice-stats-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.voice-stats-title {
+    color: var(--sonar-text);
+    font-size: 1.05rem;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+}
+
+.voice-stats-subtitle {
     color: var(--sonar-text-secondary);
+    font-size: 0.88rem;
+    margin-top: 2px;
+}
 
-    font-size: 0.76rem;
-    font-weight: 600;
+.voice-stats-counter {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    z-index: 1;
+}
+
+.voice-stats-number {
+    color: var(--sonar-primary);
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.voice-stats-label {
+    color: var(--sonar-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
 @media (max-width: 850px) {
@@ -437,12 +497,18 @@
         padding: 23px;
     }
 
-    .user-capabilities {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
     .user-logout span {
         display: none;
+    }
+
+    .voice-stats-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 24px;
+        gap: 24px;
+    }
+
+    .voice-stats-number {
+        font-size: 2.4rem;
     }
 }
