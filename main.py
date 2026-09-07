@@ -30,6 +30,7 @@ from database import (
     Setting,
     User,
     UserRole,
+    VoicePrint,
     create_tables,
     get_password_hash,
     verify_password,
@@ -253,6 +254,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 async def user_home(
     request: Request,
     user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),  # <-- Добавили сессию БД
 ):
     if not user:
         return RedirectResponse("/login", status_code=303)
@@ -260,10 +262,16 @@ async def user_home(
     if not has_role(user, UserRole.USER.value):
         return RedirectResponse(role_home(user), status_code=303)
 
+    # Получаем количество голосовых отпечатков
+    voice_count = db.query(VoicePrint).count()
+
     return templates.TemplateResponse(
         request=request,
         name="user.html",
-        context={"user": user},
+        context={
+            "user": user, 
+            "voice_count": voice_count  # <-- Передаём цифру в шаблон
+        },
     )
 
 @app.get("/")

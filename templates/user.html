@@ -210,36 +210,36 @@
         </section>
 
 
-        <section class="user-capabilities">
-
-            <div class="user-capabilities-title">
-                Возможности системы
+        <<!-- Блок статистики базы данных -->
+        <section class="voice-stats-card">
+            
+            <div class="voice-stats-info">
+                <div class="voice-stats-icon">
+                    <i class="bi bi-soundwave"></i>
+                </div>
+                <div class="voice-stats-text">
+                    <span class="voice-stats-title">База голосовых отпечатков</span>
+                    <span class="voice-stats-subtitle">Доступно для идентификации и поиска в системе</span>
+                </div>
             </div>
 
-            <div class="user-capabilities-list">
-
-                <span class="capability">
-                    <i class="bi bi-search me-1"></i>
-                    Текстовый поиск
+            <div class="voice-stats-counter">
+                <span class="voice-stats-number">{{ voice_count }}</span>
+                <span class="voice-stats-label">
+                    {%- set rem = voice_count % 10 -%}
+                    {%- set rem100 = voice_count % 100 -%}
+                    {%- if rem100 >= 11 and rem100 <= 14 -%}
+                        голосов
+                    {%- elif rem == 1 -%}
+                        голос
+                    {%- elif rem >= 2 and rem <= 4 -%}
+                        голоса
+                    {%- else -%}
+                        голосов
+                    {%- endif -%}
                 </span>
-
-                <span class="capability">
-                    <i class="bi bi-mic me-1"></i>
-                    Голосовой поиск
-                </span>
-
-                <span class="capability">
-                    <i class="bi bi-file-earmark-text me-1"></i>
-                    Результаты
-                </span>
-
-                <span class="capability">
-                    <i class="bi bi-cpu me-1"></i>
-                    AI-модели
-                </span>
-
             </div>
-
+            
         </section>
 
     </main>
