@@ -39,6 +39,7 @@ from database import (
 
 from routers import operator as operator_router
 from routers import search as voice_search_router
+from meeting.router import router as meeting_router
 from services.whisper_models import (
     get_whisper_model_choices,
     resolve_whisper_model,
@@ -173,6 +174,7 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(operator_router.router)
 app.include_router(voice_search_router.router)
+app.include_router(meeting_router)
 
 
 @app.get("/login")
